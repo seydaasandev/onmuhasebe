@@ -194,11 +194,26 @@ document.addEventListener('DOMContentLoaded', function() {
   satirEkle();
 });
 
+function showValidationError(msg) {
+  let el = document.getElementById('form-validation-alert');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'form-validation-alert';
+    el.className = 'alert alert-danger alert-dismissible fade show mt-2';
+    el.setAttribute('role', 'alert');
+    el.innerHTML = '<span id="form-validation-msg"></span><button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+    document.getElementById('faturaForm').prepend(el);
+  }
+  document.getElementById('form-validation-msg').textContent = msg;
+  el.classList.remove('d-none');
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
 document.getElementById('faturaForm').addEventListener('submit', function(e) {
   const rows = document.querySelectorAll('.fatura-satir');
   if (rows.length === 0) {
     e.preventDefault();
-    alert('Lütfen en az bir fatura kalemi ekleyin!');
+    showValidationError('Lütfen en az bir fatura kalemi ekleyin!');
     return false;
   }
   let valid = true;
@@ -210,7 +225,7 @@ document.getElementById('faturaForm').addEventListener('submit', function(e) {
   });
   if (!valid) {
     e.preventDefault();
-    alert('Lütfen tüm satırlar için ürün seçin!');
+    showValidationError('Lütfen tüm satırlar için ürün seçin!');
     return false;
   }
 });
