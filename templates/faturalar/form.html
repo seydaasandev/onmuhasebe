@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+{% block title %}Yeni Fatura - onMuhasebe{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="fas fa-file-invoice me-2"></i>Yeni Fatura</h2>
+  <a href="{{ url_for('faturalar') }}" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left me-1"></i>Geri
+  </a>
+</div>
+
+<form method="post" id="faturaForm">
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <!-- Invoice Header -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header"><i class="fas fa-info-circle me-2"></i>Fatura Bilgileri</div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-12">
+              <label class="form-label fw-semibold">Müşteri <span class="text-danger">*</span></label>
+              <select name="musteri_id" class="form-select" required>
+                <option value="">-- Müşteri Seçin --</option>
+                {% for musteri in musteriler %}
+                <option value="{{ musteri.id }}">{{ musteri.ad }} {{ musteri.soyad }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Fatura Tarihi <span class="text-danger">*</span></label>
+              <input type="date" name="tarih" class="form-control" value="{{ bugun }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Vade Tarihi</label>
+              <input type="date" name="vade_tarihi" class="form-control">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Notlar</label>
+              <textarea name="notlar" class="form-control" rows="2" placeholder="Fatura notu (opsiyonel)..."></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Invoice Items -->
+      <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="fas fa-list me-2"></i>Fatura Kalemleri</span>
+          <button type="button" class="btn btn-sm btn-success" onclick="satirEkle()">
+            <i class="fas fa-plus me-1"></i>Satır Ekle
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table align-middle mb-0" id="kalemlerTablosu">
+              <thead class="table-light">
+                <tr>
+                  <th style="min-width:220px">Ürün</th>
+                  <th style="min-width:100px">Miktar</th>
+                  <th style="min-width:120px">Birim Fiyat (₺)</th>
+                  <th style="min-width:120px" class="text-end">Toplam</th>
+                  <th style="width:50px"></th>
+                </tr>
+              </thead>
+              <tbody id="kalemlerBody">
+                <!-- Rows added by JS -->
+              </tbody>
+              <tfoot>
+                <tr class="table-light">
+                  <td colspan="3" class="text-end fw-bold">Genel Toplam:</td>
+                  <td class="text-end fw-bold fs-5 text-primary" id="genelToplam">₺0,00</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card shadow-sm sticky-top" style="top:80px">
+        <div class="card-header"><i class="fas fa-calculator me-2"></i>Özet</div>
+        <div class="card-body">
+          <div class="d-flex justify-content-between mb-2">
+            <span>Toplam Kalem:</span>
+            <span id="toplamKalem" class="fw-bold">0</span>
+          </div>
+          <hr>
+          <div class="d-flex justify-content-between mb-3">
+            <span class="fw-bold">Toplam Tutar:</span>
+            <span id="ozeToplam" class="fw-bold fs-5 text-primary">₺0,00</span>
+          </div>
+          <button type="submit" class="btn btn-primary w-100 btn-lg">
+            <i class="fas fa-save me-2"></i>Fatura Oluştur
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+
+<script>
+const urunler = {
+  {% for urun in urunler %}
+  {{ urun.id }}: { ad: {{ urun.ad | tojson }}, satis_fiyati: {{ urun.satis_fiyati }}, birim: {{ urun.birim | tojson }} },
+  {% endfor %}
+};
+
+let satirSayaci = 0;
+
+function formatPara(sayi) {
+  return '₺' + sayi.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function toplamHesapla() {
+  let toplam = 0;
+  let kalemSayisi = 0;
+  document.querySelectorAll('.fatura-satir').forEach(satir => {
+    const miktar = parseFloat(satir.querySelector('.miktar-input').value) || 0;
+    const fiyat = parseFloat(satir.querySelector('.fiyat-input').value) || 0;
+    const satirToplam = miktar * fiyat;
+    satir.querySelector('.satir-toplam').textContent = formatPara(satirToplam);
+    toplam += satirToplam;
+    if (miktar > 0) kalemSayisi++;
+  });
+  document.getElementById('genelToplam').textContent = formatPara(toplam);
+  document.getElementById('ozeToplam').textContent = formatPara(toplam);
+  document.getElementById('toplamKalem').textContent = kalemSayisi;
+}
+
+function urunSecildi(select, satirId) {
+  const urunId = select.value;
+  const satir = document.getElementById('satir-' + satirId);
+  if (urunId && urunler[urunId]) {
+    satir.querySelector('.fiyat-input').value = urunler[urunId].satis_fiyati.toFixed(2);
+  }
+  toplamHesapla();
+}
+
+function satirSil(satirId) {
+  const satir = document.getElementById('satir-' + satirId);
+  if (satir) {
+    satir.remove();
+    toplamHesapla();
+  }
+}
+
+function satirEkle(urunId) {
+  satirSayaci++;
+  const id = satirSayaci;
+  const tbody = document.getElementById('kalemlerBody');
+
+  let urunOptions = '<option value="">-- Ürün Seçin --</option>';
+  {% for urun in urunler %}
+  urunOptions += `<option value="{{ urun.id }}" ${ urunId == {{ urun.id }} ? 'selected' : '' }>{{ urun.ad }} ({{ urun.birim }})</option>`;
+  {% endfor %}
+
+  const tr = document.createElement('tr');
+  tr.className = 'fatura-satir';
+  tr.id = 'satir-' + id;
+  tr.innerHTML = `
+    <td>
+      <select name="urun_id[]" class="form-select form-select-sm" required onchange="urunSecildi(this, ${id})">
+        ${urunOptions}
+      </select>
+    </td>
+    <td>
+      <input type="number" name="miktar[]" class="form-control form-control-sm miktar-input"
+             value="1" min="0.01" step="0.01" required oninput="toplamHesapla()">
+    </td>
+    <td>
+      <div class="input-group input-group-sm">
+        <span class="input-group-text">₺</span>
+        <input type="number" name="birim_fiyat[]" class="form-control fiyat-input"
+               value="0.00" min="0" step="0.01" required oninput="toplamHesapla()">
+      </div>
+    </td>
+    <td class="text-end satir-toplam fw-semibold">₺0,00</td>
+    <td>
+      <button type="button" class="btn btn-sm btn-outline-danger" onclick="satirSil(${id})">
+        <i class="fas fa-times"></i>
+      </button>
+    </td>
+  `;
+  tbody.appendChild(tr);
+
+  if (urunId && urunler[urunId]) {
+    tr.querySelector('.fiyat-input').value = urunler[urunId].satis_fiyati.toFixed(2);
+    toplamHesapla();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  satirEkle();
+});
+
+document.getElementById('faturaForm').addEventListener('submit', function(e) {
+  const rows = document.querySelectorAll('.fatura-satir');
+  if (rows.length === 0) {
+    e.preventDefault();
+    alert('Lütfen en az bir fatura kalemi ekleyin!');
+    return false;
+  }
+  let valid = true;
+  rows.forEach(row => {
+    const sel = row.querySelector('select[name="urun_id[]"]');
+    if (!sel.value) {
+      valid = false;
+    }
+  });
+  if (!valid) {
+    e.preventDefault();
+    alert('Lütfen tüm satırlar için ürün seçin!');
+    return false;
+  }
+});
+</script>
+{% endblock %}

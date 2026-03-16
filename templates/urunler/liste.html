@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block title %}Ürünler - onMuhasebe{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="fas fa-boxes me-2"></i>Ürünler</h2>
+  <a href="{{ url_for('urun_ekle') }}" class="btn btn-primary">
+    <i class="fas fa-plus me-1"></i>Yeni Ürün
+  </a>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <form method="get" class="row g-2">
+      <div class="col-md-10">
+        <input type="text" name="arama" value="{{ arama }}" class="form-control" placeholder="Ürün adı veya barkod ile ara...">
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-outline-primary w-100">
+          <i class="fas fa-search me-1"></i>Ara
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+    {% if urunler %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Ürün Adı</th>
+            <th>Barkod</th>
+            <th class="text-center">Birim</th>
+            <th class="text-end">Alış Fiyatı</th>
+            <th class="text-end">Satış Fiyatı</th>
+            <th class="text-center">Stok</th>
+            <th class="text-center">İşlemler</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for urun in urunler %}
+          <tr {% if urun.stok_miktari <= urun.kritik_stok %}class="table-warning"{% endif %}>
+            <td>
+              <a href="{{ url_for('urun_detay', id=urun.id) }}" class="text-decoration-none fw-semibold">
+                {{ urun.ad }}
+              </a>
+              {% if urun.stok_miktari <= urun.kritik_stok %}
+                <span class="badge bg-danger ms-1 small">Kritik Stok</span>
+              {% endif %}
+            </td>
+            <td><small class="text-muted">{{ urun.barkod or '-' }}</small></td>
+            <td class="text-center">{{ urun.birim }}</td>
+            <td class="text-end">{{ urun.alis_fiyati | para }}</td>
+            <td class="text-end">{{ urun.satis_fiyati | para }}</td>
+            <td class="text-center {% if urun.stok_miktari <= urun.kritik_stok %}text-danger fw-bold{% endif %}">
+              {{ urun.stok_miktari }} {{ urun.birim }}
+            </td>
+            <td class="text-center">
+              <a href="{{ url_for('urun_detay', id=urun.id) }}" class="btn btn-sm btn-outline-info me-1" title="Detay">
+                <i class="fas fa-eye"></i>
+              </a>
+              <a href="{{ url_for('urun_duzenle', id=urun.id) }}" class="btn btn-sm btn-outline-warning me-1" title="Düzenle">
+                <i class="fas fa-edit"></i>
+              </a>
+              <form method="post" action="{{ url_for('urun_sil', id=urun.id) }}" class="d-inline" onsubmit="return confirm('Bu ürünü silmek istediğinize emin misiniz?')">
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="Sil">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="p-5 text-center text-muted">
+      <i class="fas fa-boxes fa-3x mb-3"></i>
+      <p class="mb-0">{% if arama %}Arama kriterlerine uygun ürün bulunamadı.{% else %}Henüz ürün eklenmemiş.{% endif %}</p>
+      {% if not arama %}
+      <a href="{{ url_for('urun_ekle') }}" class="btn btn-primary mt-3">
+        <i class="fas fa-plus me-1"></i>İlk Ürünü Ekle
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

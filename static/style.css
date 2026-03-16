@@ -1,0 +1,92 @@
+/* onMuhasebe Custom Styles */
+
+html, body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main.container {
+  flex: 1;
+}
+
+/* Card hover effects */
+.card {
+  transition: box-shadow 0.2s ease-in-out;
+}
+
+.card:hover {
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Navbar active link underline */
+.navbar-nav .nav-link.active {
+  font-weight: 600;
+  border-bottom: 2px solid rgba(255,255,255,0.8);
+}
+
+/* Table row highlight for low stock */
+tr.table-warning td {
+  background-color: #fff3cd;
+}
+
+/* Stok warning highlight */
+.stok-kritik {
+  color: #dc3545;
+  font-weight: bold;
+}
+
+/* Badge font size fix */
+.badge.fs-6 {
+  font-size: 0.85rem !important;
+}
+
+/* Footer */
+.footer {
+  margin-top: auto;
+}
+
+/* Invoice print styles */
+@media print {
+  .no-print,
+  .navbar,
+  .footer,
+  .btn,
+  .alert {
+    display: none !important;
+  }
+
+  body {
+    font-size: 12pt;
+  }
+
+  .card {
+    border: 1px solid #dee2e6 !important;
+    box-shadow: none !important;
+  }
+
+  .card-header {
+    background-color: #f8f9fa !important;
+    color: #000 !important;
+  }
+
+  main.container {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  .table {
+    width: 100% !important;
+  }
+}
+
+/* Sticky card on invoice form */
+.sticky-top {
+  position: sticky;
+}
+
+/* Input group fixes */
+.input-group-text {
+  min-width: 36px;
+  justify-content: center;
+}

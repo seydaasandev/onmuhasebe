@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}Stok Hareketleri - onMuhasebe{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="fas fa-warehouse me-2"></i>Stok Hareketleri</h2>
+  <a href="{{ url_for('stok_ekle') }}" class="btn btn-primary">
+    <i class="fas fa-plus me-1"></i>Yeni Hareket
+  </a>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-md-10">
+        <label class="form-label">Ürüne Göre Filtrele</label>
+        <select name="urun_id" class="form-select">
+          <option value="">-- Tüm Ürünler --</option>
+          {% for urun in urunler %}
+          <option value="{{ urun.id }}" {% if secili_urun == urun.id|string %}selected{% endif %}>{{ urun.ad }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-outline-primary w-100">
+          <i class="fas fa-filter me-1"></i>Filtrele
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+    {% if hareketler %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Tarih</th>
+            <th>Ürün</th>
+            <th class="text-center">Tür</th>
+            <th class="text-center">Miktar</th>
+            <th class="text-end">Birim Fiyat</th>
+            <th>Açıklama</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for hareket in hareketler %}
+          <tr>
+            <td><small>{{ hareket.tarih.strftime('%d.%m.%Y %H:%M') }}</small></td>
+            <td>
+              <a href="{{ url_for('urun_detay', id=hareket.urun.id) }}" class="text-decoration-none">
+                {{ hareket.urun.ad }}
+              </a>
+            </td>
+            <td class="text-center">
+              {% if hareket.hareket_tipi == 'giris' %}
+                <span class="badge bg-success"><i class="fas fa-arrow-down me-1"></i>Giriş</span>
+              {% else %}
+                <span class="badge bg-danger"><i class="fas fa-arrow-up me-1"></i>Çıkış</span>
+              {% endif %}
+            </td>
+            <td class="text-center">{{ hareket.miktar }} {{ hareket.urun.birim }}</td>
+            <td class="text-end">{{ hareket.birim_fiyat | para }}</td>
+            <td>{{ hareket.aciklama or '-' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="p-5 text-center text-muted">
+      <i class="fas fa-warehouse fa-3x mb-3"></i>
+      <p class="mb-0">Stok hareketi bulunamadı.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

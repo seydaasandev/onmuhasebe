@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}Stok Hareketi Ekle - onMuhasebe{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="fas fa-exchange-alt me-2"></i>Stok Hareketi Ekle</h2>
+  <a href="{{ url_for('stok') }}" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left me-1"></i>Geri
+  </a>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <form method="post">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Ürün <span class="text-danger">*</span></label>
+          <select name="urun_id" class="form-select" required>
+            <option value="">-- Ürün Seçin --</option>
+            {% for urun in urunler %}
+            <option value="{{ urun.id }}">{{ urun.ad }} (Stok: {{ urun.stok_miktari }} {{ urun.birim }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Hareket Türü <span class="text-danger">*</span></label>
+          <div class="d-flex gap-3 mt-2">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="hareket_tipi" id="giris" value="giris" checked>
+              <label class="form-check-label text-success fw-semibold" for="giris">
+                <i class="fas fa-arrow-down me-1"></i>Giriş
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="hareket_tipi" id="cikis" value="cikis">
+              <label class="form-check-label text-danger fw-semibold" for="cikis">
+                <i class="fas fa-arrow-up me-1"></i>Çıkış
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Miktar <span class="text-danger">*</span></label>
+          <input type="number" name="miktar" class="form-control" required min="0.01" step="0.01" placeholder="0.00">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Birim Fiyat</label>
+          <div class="input-group">
+            <span class="input-group-text">₺</span>
+            <input type="number" name="birim_fiyat" class="form-control" value="0" min="0" step="0.01">
+          </div>
+        </div>
+        <div class="col-12">
+          <label class="form-label fw-semibold">Açıklama</label>
+          <textarea name="aciklama" class="form-control" rows="3" placeholder="Harekete ait açıklama (opsiyonel)..."></textarea>
+        </div>
+      </div>
+      <div class="mt-4 d-flex gap-2">
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-save me-1"></i>Kaydet
+        </button>
+        <a href="{{ url_for('stok') }}" class="btn btn-outline-secondary">İptal</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

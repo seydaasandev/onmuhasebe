@@ -1,0 +1,215 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - onMuhasebe{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h2>
+  <a href="{{ url_for('init_data') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-database me-1"></i>Örnek Veri Yükle
+  </a>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <div class="card border-0 shadow-sm text-white bg-primary h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <div class="fs-1 fw-bold">{{ musteri_sayisi }}</div>
+            <div>Toplam Müşteri</div>
+          </div>
+          <div class="align-self-center fs-1 opacity-50"><i class="fas fa-users"></i></div>
+        </div>
+      </div>
+      <div class="card-footer bg-transparent border-0">
+        <a href="{{ url_for('musteriler') }}" class="text-white text-decoration-none small">
+          Tümünü Gör <i class="fas fa-arrow-right ms-1"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card border-0 shadow-sm text-white bg-success h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <div class="fs-1 fw-bold">{{ urun_sayisi }}</div>
+            <div>Toplam Ürün</div>
+          </div>
+          <div class="align-self-center fs-1 opacity-50"><i class="fas fa-boxes"></i></div>
+        </div>
+      </div>
+      <div class="card-footer bg-transparent border-0">
+        <a href="{{ url_for('urunler') }}" class="text-white text-decoration-none small">
+          Tümünü Gör <i class="fas fa-arrow-right ms-1"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card border-0 shadow-sm text-white {% if dusuk_stok %}bg-danger{% else %}bg-secondary{% endif %} h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <div class="fs-1 fw-bold">{{ dusuk_stok|length }}</div>
+            <div>Düşük Stok</div>
+          </div>
+          <div class="align-self-center fs-1 opacity-50"><i class="fas fa-exclamation-triangle"></i></div>
+        </div>
+      </div>
+      <div class="card-footer bg-transparent border-0">
+        <a href="{{ url_for('urunler') }}" class="text-white text-decoration-none small">
+          Detayları Gör <i class="fas fa-arrow-right ms-1"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card border-0 shadow-sm text-white bg-warning h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <div class="fs-4 fw-bold">{{ toplam_alacak | para }}</div>
+            <div>Toplam Alacak</div>
+          </div>
+          <div class="align-self-center fs-1 opacity-50"><i class="fas fa-lira-sign"></i></div>
+        </div>
+      </div>
+      <div class="card-footer bg-transparent border-0">
+        <a href="{{ url_for('faturalar') }}" class="text-white text-decoration-none small">
+          Faturalara Git <i class="fas fa-arrow-right ms-1"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if dusuk_stok %}
+<div class="card border-danger mb-4">
+  <div class="card-header bg-danger text-white">
+    <i class="fas fa-exclamation-triangle me-2"></i>Kritik Stok Uyarısı ({{ dusuk_stok|length }} ürün)
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Ürün</th>
+            <th class="text-center">Mevcut Stok</th>
+            <th class="text-center">Kritik Seviye</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for urun in dusuk_stok %}
+          <tr>
+            <td><a href="{{ url_for('urun_detay', id=urun.id) }}" class="text-decoration-none">{{ urun.ad }}</a></td>
+            <td class="text-center text-danger fw-bold">{{ urun.stok_miktari }} {{ urun.birim }}</td>
+            <td class="text-center">{{ urun.kritik_stok }} {{ urun.birim }}</td>
+            <td class="text-end">
+              <a href="{{ url_for('stok_ekle') }}?urun_id={{ urun.id }}" class="btn btn-sm btn-outline-success">
+                <i class="fas fa-plus"></i> Stok Ekle
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-file-invoice me-2"></i>Son Faturalar</span>
+        <a href="{{ url_for('faturalar') }}" class="btn btn-sm btn-outline-primary">Tümü</a>
+      </div>
+      <div class="card-body p-0">
+        {% if son_faturalar %}
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Fatura No</th>
+                <th>Müşteri</th>
+                <th class="text-end">Tutar</th>
+                <th class="text-center">Durum</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for fatura in son_faturalar %}
+              <tr>
+                <td><a href="{{ url_for('fatura_detay', id=fatura.id) }}" class="text-decoration-none">{{ fatura.fatura_no }}</a></td>
+                <td>{{ fatura.musteri.ad }} {{ fatura.musteri.soyad }}</td>
+                <td class="text-end">{{ fatura.toplam_tutar | para }}</td>
+                <td class="text-center">
+                  {% if fatura.durum == 'odendi' %}
+                    <span class="badge bg-success">Ödendi</span>
+                  {% elif fatura.durum == 'kismi_odendi' %}
+                    <span class="badge bg-warning text-dark">Kısmi</span>
+                  {% else %}
+                    <span class="badge bg-danger">Beklemede</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="p-4 text-center text-muted">
+          <i class="fas fa-file-invoice fa-2x mb-2"></i><br>Henüz fatura bulunmuyor.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-exchange-alt me-2"></i>Son Stok Hareketleri</span>
+        <a href="{{ url_for('stok') }}" class="btn btn-sm btn-outline-primary">Tümü</a>
+      </div>
+      <div class="card-body p-0">
+        {% if son_hareketler %}
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Ürün</th>
+                <th class="text-center">Tür</th>
+                <th class="text-center">Miktar</th>
+                <th>Tarih</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for hareket in son_hareketler %}
+              <tr>
+                <td>{{ hareket.urun.ad }}</td>
+                <td class="text-center">
+                  {% if hareket.hareket_tipi == 'giris' %}
+                    <span class="badge bg-success"><i class="fas fa-arrow-down me-1"></i>Giriş</span>
+                  {% else %}
+                    <span class="badge bg-danger"><i class="fas fa-arrow-up me-1"></i>Çıkış</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">{{ hareket.miktar }} {{ hareket.urun.birim }}</td>
+                <td><small>{{ hareket.tarih.strftime('%d.%m.%Y') }}</small></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="p-4 text-center text-muted">
+          <i class="fas fa-warehouse fa-2x mb-2"></i><br>Henüz stok hareketi bulunmuyor.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

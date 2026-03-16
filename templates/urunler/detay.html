@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% block title %}{{ urun.ad }} - onMuhasebe{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="fas fa-box me-2"></i>{{ urun.ad }}</h2>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('urun_duzenle', id=urun.id) }}" class="btn btn-outline-warning">
+      <i class="fas fa-edit me-1"></i>Düzenle
+    </a>
+    <a href="{{ url_for('urunler') }}" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left me-1"></i>Geri
+    </a>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header"><i class="fas fa-info-circle me-2"></i>Ürün Bilgileri</div>
+      <div class="card-body">
+        <table class="table table-borderless mb-0">
+          <tr>
+            <th class="text-muted" style="width:40%">Ürün Adı</th>
+            <td>{{ urun.ad }}</td>
+          </tr>
+          <tr>
+            <th class="text-muted">Barkod</th>
+            <td>{{ urun.barkod or '-' }}</td>
+          </tr>
+          <tr>
+            <th class="text-muted">Birim</th>
+            <td>{{ urun.birim }}</td>
+          </tr>
+          <tr>
+            <th class="text-muted">Alış Fiyatı</th>
+            <td>{{ urun.alis_fiyati | para }}</td>
+          </tr>
+          <tr>
+            <th class="text-muted">Satış Fiyatı</th>
+            <td>{{ urun.satis_fiyati | para }}</td>
+          </tr>
+          <tr>
+            <th class="text-muted">Kritik Stok</th>
+            <td>{{ urun.kritik_stok }} {{ urun.birim }}</td>
+          </tr>
+          <tr>
+            <th class="text-muted">Kayıt Tarihi</th>
+            <td>{{ urun.created_at.strftime('%d.%m.%Y') }}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100 {% if urun.stok_miktari <= urun.kritik_stok %}border-danger{% endif %}">
+      <div class="card-header {% if urun.stok_miktari <= urun.kritik_stok %}bg-danger text-white{% endif %}">
+        <i class="fas fa-warehouse me-2"></i>Stok Durumu
+      </div>
+      <div class="card-body text-center">
+        <div class="fs-1 fw-bold {% if urun.stok_miktari <= urun.kritik_stok %}text-danger{% else %}text-success{% endif %}">
+          {{ urun.stok_miktari }}
+        </div>
+        <div class="text-muted">{{ urun.birim }}</div>
+        {% if urun.stok_miktari <= urun.kritik_stok %}
+          <div class="mt-2"><span class="badge bg-danger fs-6">Kritik Stok Seviyesi!</span></div>
+        {% else %}
+          <div class="mt-2"><span class="badge bg-success fs-6">Stok Yeterli</span></div>
+        {% endif %}
+        <div class="mt-3">
+          <a href="{{ url_for('stok_ekle') }}" class="btn btn-success btn-sm me-2">
+            <i class="fas fa-plus me-1"></i>Stok Girişi
+          </a>
+          <a href="{{ url_for('stok') }}?urun_id={{ urun.id }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-history me-1"></i>Hareketler
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-header"><i class="fas fa-exchange-alt me-2"></i>Stok Hareketleri</div>
+  <div class="card-body p-0">
+    {% if hareketler %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Tarih</th>
+            <th class="text-center">Tür</th>
+            <th class="text-center">Miktar</th>
+            <th class="text-end">Birim Fiyat</th>
+            <th>Açıklama</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for hareket in hareketler %}
+          <tr>
+            <td>{{ hareket.tarih.strftime('%d.%m.%Y %H:%M') }}</td>
+            <td class="text-center">
+              {% if hareket.hareket_tipi == 'giris' %}
+                <span class="badge bg-success"><i class="fas fa-arrow-down me-1"></i>Giriş</span>
+              {% else %}
+                <span class="badge bg-danger"><i class="fas fa-arrow-up me-1"></i>Çıkış</span>
+              {% endif %}
+            </td>
+            <td class="text-center">{{ hareket.miktar }} {{ urun.birim }}</td>
+            <td class="text-end">{{ hareket.birim_fiyat | para }}</td>
+            <td>{{ hareket.aciklama or '-' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="p-4 text-center text-muted">
+      <i class="fas fa-exchange-alt fa-2x mb-2"></i><br>Henüz stok hareketi bulunmuyor.
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

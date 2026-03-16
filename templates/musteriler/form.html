@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block title %}{{ baslik }} - onMuhasebe{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2><i class="fas fa-user-{% if musteri %}edit{% else %}plus{% endif %} me-2"></i>{{ baslik }}</h2>
+  <a href="{{ url_for('musteriler') }}" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left me-1"></i>Geri
+  </a>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <form method="post">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Ad <span class="text-danger">*</span></label>
+          <input type="text" name="ad" class="form-control" value="{{ musteri.ad if musteri else '' }}" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Soyad <span class="text-danger">*</span></label>
+          <input type="text" name="soyad" class="form-control" value="{{ musteri.soyad if musteri else '' }}" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Telefon</label>
+          <input type="text" name="telefon" class="form-control" value="{{ musteri.telefon if musteri else '' }}" placeholder="05XX XXX XXXX">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">E-posta</label>
+          <input type="email" name="email" class="form-control" value="{{ musteri.email if musteri else '' }}" placeholder="ornek@email.com">
+        </div>
+        <div class="col-12">
+          <label class="form-label fw-semibold">Adres</label>
+          <textarea name="adres" class="form-control" rows="3" placeholder="Müşteri adresi...">{{ musteri.adres if musteri else '' }}</textarea>
+        </div>
+        {% if not musteri %}
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Başlangıç Bakiyesi</label>
+          <div class="input-group">
+            <span class="input-group-text">₺</span>
+            <input type="number" name="bakiye" class="form-control" value="0" step="0.01" min="0">
+          </div>
+        </div>
+        {% else %}
+        <div class="col-md-6">
+          <label class="form-label fw-semibold">Mevcut Bakiye</label>
+          <div class="input-group">
+            <span class="input-group-text">₺</span>
+            <input type="text" class="form-control" value="{{ '%.2f' % musteri.bakiye }}" readonly disabled>
+          </div>
+          <small class="text-muted">Bakiye, fatura ödemeleriyle otomatik güncellenir.</small>
+        </div>
+        {% endif %}
+      </div>
+      <div class="mt-4 d-flex gap-2">
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-save me-1"></i>{% if musteri %}Güncelle{% else %}Kaydet{% endif %}
+        </button>
+        <a href="{{ url_for('musteriler') }}" class="btn btn-outline-secondary">İptal</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

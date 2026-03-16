@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}onMuhasebe{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container">
+    <a class="navbar-brand fw-bold" href="{{ url_for('index') }}">
+      <i class="fas fa-calculator me-2"></i>onMuhasebe
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav">
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}">
+            <i class="fas fa-home me-1"></i>Dashboard
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint and 'musteri' in request.endpoint %}active{% endif %}" href="{{ url_for('musteriler') }}">
+            <i class="fas fa-users me-1"></i>Müşteriler
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint and 'urun' in request.endpoint %}active{% endif %}" href="{{ url_for('urunler') }}">
+            <i class="fas fa-boxes me-1"></i>Ürünler
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint and 'stok' in request.endpoint %}active{% endif %}" href="{{ url_for('stok') }}">
+            <i class="fas fa-warehouse me-1"></i>Stok
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint and 'fatura' in request.endpoint %}active{% endif %}" href="{{ url_for('faturalar') }}">
+            <i class="fas fa-file-invoice me-1"></i>Faturalar
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<main class="container mt-4 mb-5">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="footer bg-light border-top py-3 mt-auto">
+  <div class="container text-center text-muted">
+    <small><i class="fas fa-calculator me-1"></i>onMuhasebe &copy; 2024 - Ön Muhasebe Programı</small>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
