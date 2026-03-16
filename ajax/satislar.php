@@ -1,4 +1,5 @@
 <?php
+ini_set('display_errors', 0);
 require "../config.php";
 header('Content-Type: application/json; charset=utf-8');
 
@@ -14,18 +15,50 @@ $startDate  = $_POST['start_date'] ?? '';
 $endDate    = $_POST['end_date'] ?? '';
 
 /* =====================================================
+   ORDER (SERVER SIDE)
+===================================================== */
+$columns = [
+    0  => 's.id',
+    1  => 's.islem_no',
+    2  => 'm.musteri_adi',
+    3  => 'p.urun_adi',
+    4  => 's.adet',
+    5  => 'ROUND(s.tutar / NULLIF(s.adet, 0), 2)',
+    6  => 's.kdv_toplami',
+    7  => 's.indirim_toplami',
+    8  => 's.tutar',
+    9  => 'u.namesurname',
+    10 => 's.tarih'
+];
+
+$orderColIndex = (int)($_POST['order'][0]['column'] ?? 0);
+$orderDir = strtolower($_POST['order'][0]['dir'] ?? 'desc');
+$orderDir = in_array($orderDir, ['asc', 'desc'], true) ? $orderDir : 'desc';
+$orderColumn = $columns[$orderColIndex] ?? 's.id';
+
+/* =====================================================
    CACHE KEY (ARAMA + TARİH + SAYFA)
 ===================================================== */
 $cacheKey = md5(json_encode([
-    $search, $startDate, $endDate, $start, $length
+    $search, $startDate, $endDate, $start, $length,
+    $orderColumn, $orderDir
 ]));
 
 $cacheDir  = __DIR__ . '/cache/';
 $cacheFile = $cacheDir . $cacheKey . '.json';
 
 /* CACHE VARSA 10 DK */
-if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < 10) {
-    echo file_get_contents($cacheFile);
+if (is_file($cacheFile) && is_readable($cacheFile) && (time() - filemtime($cacheFile)) < 10) {
+    $cached = file_get_contents($cacheFile);
+    if ($cached !== false) {
+        $cachedData = json_decode($cached, true);
+        if (is_array($cachedData)) {
+            $cachedData['draw'] = $draw;
+            echo json_encode($cachedData, JSON_UNESCAPED_UNICODE);
+        } else {
+            echo $cached;
+        }
+    }
     exit;
 }
 
@@ -90,7 +123,7 @@ LEFT JOIN musteriler m ON m.id=s.musteri_id
 LEFT JOIN urunler p    ON p.id=s.urun_id
 LEFT JOIN users u     ON u.id=s.satisi_yapan_id
 WHERE $where
-ORDER BY s.id DESC
+ORDER BY $orderColumn $orderDir
 LIMIT :start, :length
 ";
 
@@ -133,9 +166,8 @@ $response = json_encode([
     "data"            => $data
 ], JSON_UNESCAPED_UNICODE);
 
-if (!is_dir($cacheDir)) {
-    mkdir($cacheDir, 0777, true);
+if (is_dir($cacheDir) || @mkdir($cacheDir, 0775, true)) {
+    @file_put_contents($cacheFile, $response);
 }
-file_put_contents($cacheFile, $response);
 
 echo $response;

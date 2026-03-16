@@ -1,5 +1,5 @@
 <?php
-ini_set('display_errors', 1);
+ini_set('display_errors', 0);
 error_reporting(E_ALL);
 require "../config.php";
 header('Content-Type: application/json; charset=utf-8');
@@ -23,8 +23,17 @@ $cacheDir  = __DIR__ . '/cachemusteriler/';
 $cacheFile = $cacheDir . $cacheKey . '.json';
 
 /* CACHE VARSA (100 sn) */
-if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < 100) {
-    echo file_get_contents($cacheFile);
+if (is_file($cacheFile) && is_readable($cacheFile) && (time() - filemtime($cacheFile)) < 100) {
+    $cached = file_get_contents($cacheFile);
+    if ($cached !== false) {
+        $cachedData = json_decode($cached, true);
+        if (is_array($cachedData)) {
+            $cachedData['draw'] = $draw;
+            echo json_encode($cachedData, JSON_UNESCAPED_UNICODE);
+        } else {
+            echo $cached;
+        }
+    }
     exit;
 }
 
@@ -127,9 +136,8 @@ $response = json_encode([
     "data"            => $data
 ], JSON_UNESCAPED_UNICODE);
 
-if (!is_dir($cacheDir)) {
-    mkdir($cacheDir, 0777, true);
+if (is_dir($cacheDir) || @mkdir($cacheDir, 0775, true)) {
+    @file_put_contents($cacheFile, $response);
 }
-file_put_contents($cacheFile, $response);
 
 echo $response;

@@ -105,7 +105,7 @@ if (strtolower($role) === 'user') {
                                     <h5 class="card-title mb-0">Ürün Ekle</h5>
                                 </div>
                                 <div class="card-body">
-                              <form action="islem.php?islem=urun_ekle" method="POST">
+                              <form action="islem.php?islem=urun_ekle" method="POST" enctype="multipart/form-data">
     <div class="row">
 
         <!-- Ürün Adı -->
@@ -169,6 +169,14 @@ if (strtolower($role) === 'user') {
             <div class="mb-3">
                 <label for="satis_fiyat" class="form-label">Satış Fiyatı TL</label>
                 <input type="text" name="satis_fiyat" class="form-control" placeholder="0.00" id="satis_fiyat">
+            </div>
+        </div>
+
+        <div class="col-6">
+            <div class="mb-3">
+                <label for="resim" class="form-label">Ürün Resmi</label>
+                <input type="file" name="resim" class="form-control" id="resim" accept="image/jpeg,image/png,image/webp">
+                <small class="text-muted">JPG, PNG veya WEBP yükleyin.</small>
             </div>
         </div>
 

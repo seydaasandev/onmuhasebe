@@ -115,7 +115,7 @@ if (!$urun) {
                                     <h5 class="card-title mb-0">Ürün Düzenle</h5>
                                 </div>
                                 <div class="card-body">
-                                <form action="islem.php?islem=urun_duzenle" method="POST">
+                                <form action="islem.php?islem=urun_duzenle" method="POST" enctype="multipart/form-data">
 
         <input type="hidden" name="id" value="<?= $urun['id'] ?>">
 
@@ -175,6 +175,17 @@ if (!$urun) {
                 <div class="mb-3">
                     <label class="form-label">Satış Fiyatı TL</label>
                     <input type="text" name="satis_fiyat" class="form-control" value="<?= $urun['satis_fiyat'] ?>">
+                </div>
+            </div>
+
+            <div class="col-6">
+                <div class="mb-3">
+                    <label class="form-label" for="resim">Ürün Resmi</label>
+                    <input type="file" name="resim" id="resim" class="form-control" accept="image/jpeg,image/png,image/webp">
+                    <small class="text-muted d-block mt-1">Boş bırakılırsa mevcut resim korunur.</small>
+                    <?php if (!empty($urun['resim'])): ?>
+                        <img src="<?= htmlspecialchars($urun['resim']) ?>" alt="Ürün resmi" style="width:100px;height:100px;object-fit:cover;border:1px solid #ddd;border-radius:6px;margin-top:8px;">
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -357,10 +368,11 @@ document.querySelector('form').addEventListener('submit', function() {
 <script>
 Swal.fire({
     icon: "<?php echo $_SESSION['mesaj']=='duzenle_ok' ? 'success' : 'error'; ?>",
-    title: "<?php echo $_SESSION['mesaj']=='duzenle_ok' ? 'Güncellendi' : 'Güncellenemedi'; ?>"
+    title: "<?php echo $_SESSION['mesaj']=='duzenle_ok' ? 'Güncellendi' : 'Güncellenemedi'; ?>",
+    text: "<?php echo isset($_SESSION['mesaj_detay']) ? addslashes($_SESSION['mesaj_detay']) : ''; ?>"
 });
 </script>
-<?php unset($_SESSION['mesaj']); endif; ?>
+<?php unset($_SESSION['mesaj'], $_SESSION['mesaj_detay']); endif; ?>
 
 
 

@@ -120,6 +120,7 @@ if (strtolower($role) === 'user') {
     <thead>
         <tr>
             <th>ID</th>
+            <th>Resim</th>
             <th>Ürün Adı</th>
              <th>Barkod</th>
             <th>Stok</th>

@@ -1,5 +1,5 @@
 <?php
-ini_set('display_errors', 1);
+ini_set('display_errors', 0);
 error_reporting(E_ALL);
 require "../config.php";
 header('Content-Type: application/json; charset=utf-8');
@@ -31,6 +31,8 @@ $columns = [
 
 $orderColIndex = $_POST['order'][0]['column'] ?? 0;
 $orderDir      = $_POST['order'][0]['dir'] ?? 'desc';
+$orderDir      = strtolower($orderDir);
+$orderDir      = in_array($orderDir, ['asc', 'desc'], true) ? $orderDir : 'desc';
 $orderColumn   = $columns[$orderColIndex] ?? 'o.id';
 
 /* =====================================================
@@ -43,8 +45,17 @@ $cacheKey = md5(json_encode([
 $cacheDir  = __DIR__ . '/cachefaturalar/';
 $cacheFile = $cacheDir . $cacheKey . '.json';
 
-if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < 10) {
-    echo file_get_contents($cacheFile);
+if (is_file($cacheFile) && is_readable($cacheFile) && (time() - filemtime($cacheFile)) < 10) {
+    $cached = file_get_contents($cacheFile);
+    if ($cached !== false) {
+        $cachedData = json_decode($cached, true);
+        if (is_array($cachedData)) {
+            $cachedData['draw'] = $draw;
+            echo json_encode($cachedData, JSON_UNESCAPED_UNICODE);
+        } else {
+            echo $cached;
+        }
+    }
     exit;
 }
 
@@ -188,9 +199,8 @@ $response = json_encode([
     "data"            => $data
 ], JSON_UNESCAPED_UNICODE);
 
-if (!is_dir($cacheDir)) {
-    mkdir($cacheDir, 0777, true);
+if (is_dir($cacheDir) || @mkdir($cacheDir, 0775, true)) {
+    @file_put_contents($cacheFile, $response);
 }
-file_put_contents($cacheFile, $response);
 
 echo $response;

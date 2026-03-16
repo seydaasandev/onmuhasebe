@@ -1,5 +1,5 @@
 <?php
-ini_set('display_errors', 1);
+ini_set('display_errors', 0);
 error_reporting(E_ALL);
 require "../config.php";
 header('Content-Type: application/json; charset=utf-8');
@@ -23,8 +23,17 @@ $cacheDir  = __DIR__ . '/cacheurunler/';
 $cacheFile = $cacheDir . $cacheKey . '.json';
 
 /* CACHE VARSA (100 sn) */
-if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) <50) {
-    echo file_get_contents($cacheFile);
+if (is_file($cacheFile) && is_readable($cacheFile) && (time() - filemtime($cacheFile)) < 50) {
+    $cached = file_get_contents($cacheFile);
+    if ($cached !== false) {
+        $cachedData = json_decode($cached, true);
+        if (is_array($cachedData)) {
+            $cachedData['draw'] = $draw;
+            echo json_encode($cachedData, JSON_UNESCAPED_UNICODE);
+        } else {
+            echo $cached;
+        }
+    }
     exit;
 }
 
@@ -73,6 +82,7 @@ $filtered = $stmt->fetchColumn();
 $sql = "
 SELECT 
     u.id,
+    u.resim,
     u.urun_adi,
     u.barkod,
     u.stok,
@@ -101,8 +111,15 @@ $stmt->execute();
 $data = [];
 
 while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
+    $resimHtml = '';
+    if (!empty($r['resim'])) {
+        $resimUrl = htmlspecialchars($r['resim'], ENT_QUOTES, 'UTF-8');
+        $resimHtml = '<img src="' . $resimUrl . '" alt="Urun resmi" style="width:65px;height:65px;object-fit:cover;border-radius:6px;border:1px solid #ddd;">';
+    }
+
     $data[] = [
         $r['id'],
+        $resimHtml,
         $r['urun_adi'],
         $r['barkod'],
         $r['stok'],
@@ -128,9 +145,8 @@ $response = json_encode([
     "data"            => $data
 ], JSON_UNESCAPED_UNICODE);
 
-if (!is_dir($cacheDir)) {
-    mkdir($cacheDir, 0777, true);
+if (is_dir($cacheDir) || @mkdir($cacheDir, 0775, true)) {
+    @file_put_contents($cacheFile, $response);
 }
-file_put_contents($cacheFile, $response);
 
 echo $response;

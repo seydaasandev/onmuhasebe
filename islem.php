@@ -8,6 +8,94 @@ if (!isset($_SESSION['user_id'])) {
     die('Yetkisiz erişim');
 }
 
+function urun_resmi_yukle($inputName, $mevcutResim = '')
+{
+    if (!isset($_FILES[$inputName]) || $_FILES[$inputName]['error'] === UPLOAD_ERR_NO_FILE) {
+        return [
+            'ok' => true,
+            'path' => $mevcutResim,
+            'error' => ''
+        ];
+    }
+
+    $file = $_FILES[$inputName];
+
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        return [
+            'ok' => false,
+            'path' => $mevcutResim,
+            'error' => 'Yukleme hatasi olustu.'
+        ];
+    }
+
+    if (($file['size'] ?? 0) > 5 * 1024 * 1024) {
+        return [
+            'ok' => false,
+            'path' => $mevcutResim,
+            'error' => 'Dosya boyutu 5MB ustunde olamaz.'
+        ];
+    }
+
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
+
+    $izinli = [
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/webp' => 'webp'
+    ];
+
+    if (!isset($izinli[$mime])) {
+        return [
+            'ok' => false,
+            'path' => $mevcutResim,
+            'error' => 'Sadece JPG, PNG, WEBP dosyalari yuklenebilir.'
+        ];
+    }
+
+    $uploadDir = __DIR__ . '/resimler/';
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0775, true);
+    }
+
+    if (!is_writable($uploadDir)) {
+        @chmod($uploadDir, 0775);
+    }
+
+    if (!is_writable($uploadDir)) {
+        return [
+            'ok' => false,
+            'path' => $mevcutResim,
+            'error' => 'Resim klasoru yazma izni yok: resimler/'
+        ];
+    }
+
+    $dosyaAdi = 'urun_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.' . $izinli[$mime];
+    $hedef = $uploadDir . $dosyaAdi;
+
+    if (!move_uploaded_file($file['tmp_name'], $hedef)) {
+        return [
+            'ok' => false,
+            'path' => $mevcutResim,
+            'error' => 'Dosya kaydedilemedi. Klasor izni kontrol edin.'
+        ];
+    }
+
+    if (!empty($mevcutResim) && strpos($mevcutResim, 'resimler/') === 0) {
+        $eskiYol = __DIR__ . '/' . $mevcutResim;
+        if (is_file($eskiYol)) {
+            @unlink($eskiYol);
+        }
+    }
+
+    return [
+        'ok' => true,
+        'path' => 'resimler/' . $dosyaAdi,
+        'error' => ''
+    ];
+}
+
 /* =========================================
    ÜRÜN SİLME İŞLEMİ
 ========================================= */
@@ -42,7 +130,29 @@ if (isset($_GET['islem']) && $_GET['islem'] == "urun_sil") {
 ========================================= */
 if (isset($_GET['islem']) && $_GET['islem'] == "urun_duzenle") {
 
-    $id = $_POST['id'];
+    $id = (int)($_POST['id'] ?? 0);
+    if ($id <= 0) {
+        header("Location: urunler.php");
+        exit;
+    }
+
+    $urunSorgu = $db->prepare("SELECT resim FROM urunler WHERE id = ?");
+    $urunSorgu->execute([$id]);
+    $mevcutUrun = $urunSorgu->fetch(PDO::FETCH_ASSOC);
+    if (!$mevcutUrun) {
+        $_SESSION['mesaj'] = "duzenle_no";
+        header("Location: urunler.php");
+        exit;
+    }
+
+    $upload = urun_resmi_yukle('resim', $mevcutUrun['resim'] ?? '');
+    if (!$upload['ok']) {
+        $_SESSION['mesaj'] = "duzenle_no";
+        $_SESSION['mesaj_detay'] = $upload['error'];
+        header("Location: urun-duzenle.php?id=$id");
+        exit;
+    }
+
     $urun_adi = $_POST['urun_adi'];
     $stok = $_POST['stok'];
     $marka = $_POST['marka'];
@@ -63,7 +173,8 @@ if (isset($_GET['islem']) && $_GET['islem'] == "urun_duzenle") {
         kdv=?, 
         satis_fiyat=?, 
         barkod=?, 
-        web=?
+        web=?,
+        resim=?
     WHERE id=?")->execute([
         $urun_adi,
         $stok,
@@ -75,6 +186,7 @@ if (isset($_GET['islem']) && $_GET['islem'] == "urun_duzenle") {
         $satis_fiyat,
         $barkod,
         (int)($_POST['web'] ?? 0),
+        $upload['path'],
         $id
     ]);
 
@@ -113,6 +225,14 @@ if (isset($_GET['islem']) && $_GET['islem'] == "urun_ekle") {
     $barkod     = $_POST['barkod'] ?? '';
     $satis_fiyat = (float)($_POST['satis_fiyat'] ?? 0);
 
+    $upload = urun_resmi_yukle('resim', '');
+    if (!$upload['ok']) {
+        $_SESSION['mesaj'] = "ekle_no";
+        $_SESSION['mesaj_detay'] = $upload['error'];
+        header("Location: yeni-urun.php");
+        exit;
+    }
+
     if ($urun_adi == "" || $kdv == "") {
         $_SESSION['mesaj'] = "ekle_no";
         header("Location: yeni-urun.php");
@@ -121,8 +241,8 @@ if (isset($_GET['islem']) && $_GET['islem'] == "urun_ekle") {
 
     $ekle = $db->prepare("
         INSERT INTO urunler 
-        (urun_adi, stok, marka, cins, kategori, raf_bolumu, kdv, barkod, satis_fiyat, web)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (urun_adi, stok, marka, cins, kategori, raf_bolumu, kdv, barkod, satis_fiyat, web, resim)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
 
     $sonuc = $ekle->execute([
@@ -135,7 +255,8 @@ if (isset($_GET['islem']) && $_GET['islem'] == "urun_ekle") {
         $kdv,
         $barkod,
         $satis_fiyat,
-        (int)($_POST['web'] ?? 0)
+        (int)($_POST['web'] ?? 0),
+        $upload['path']
     ]);
 
     if ($sonuc) {
