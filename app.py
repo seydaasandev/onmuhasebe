@@ -4,7 +4,7 @@ from datetime import datetime
 import os
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'onmuhasebe-secret-key-2024'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'onmuhasebe-secret-key-2024')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///onmuhasebe.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 

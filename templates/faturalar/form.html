@@ -145,14 +145,14 @@ function satirSil(satirId) {
   }
 }
 
-function satirEkle(urunId) {
+function satirEkle(urunId = null) {
   satirSayaci++;
   const id = satirSayaci;
   const tbody = document.getElementById('kalemlerBody');
 
   let urunOptions = '<option value="">-- Ürün Seçin --</option>';
   {% for urun in urunler %}
-  urunOptions += `<option value="{{ urun.id }}" ${ urunId == {{ urun.id }} ? 'selected' : '' }>{{ urun.ad }} ({{ urun.birim }})</option>`;
+  urunOptions += `<option value="{{ urun.id }}" ${ urunId !== null && urunId === {{ urun.id }} ? 'selected' : '' }>{{ urun.ad }} ({{ urun.birim }})</option>`;
   {% endfor %}
 
   const tr = document.createElement('tr');
