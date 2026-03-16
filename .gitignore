@@ -1,0 +1,5 @@
+config.php
+logs/
+db/
+*.log
+error_log

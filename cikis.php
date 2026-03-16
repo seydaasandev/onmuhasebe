@@ -1,0 +1,24 @@
+<?php
+session_start();
+require "config.php";
+
+// Eğer kullanıcı giriş yaptıysa token'ı da sıfırla
+if (isset($_SESSION['user_id'])) {
+    $update = $db->prepare("UPDATE users SET token = NULL WHERE id = :id");
+    $update->execute(['id' => $_SESSION['user_id']]);
+}
+
+// Session'ı tamamen bitir
+$_SESSION = [];
+session_unset();
+session_destroy();
+
+// Remember me cookie'yi temizle
+if (isset($_COOKIE['remember_token'])) {
+    setcookie("remember_token", "", time() - 3600, "/");
+}
+
+// Login sayfasına yönlendir
+header("Location: index.php");
+exit;
+?>
