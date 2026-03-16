@@ -18,7 +18,7 @@ if [[ -n "$(git status --porcelain)" ]]; then
 else
   echo "Degisiklik yok, commit atlanadi."
 fi
-
+./
 git pull --rebase origin "$BRANCH"
 git push origin "$BRANCH"
 
