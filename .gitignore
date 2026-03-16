@@ -3,3 +3,8 @@ logs/
 db/
 *.log
 error_log
+config.php
+logs/
+db/
+*.log
+error_log
