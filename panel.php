@@ -60,6 +60,75 @@ $toplam_odeme = $stmt->fetchColumn();
     <link href="assets/css/app.min.css" rel="stylesheet" type="text/css" />
     <!-- custom Css-->
     <link href="assets/css/custom.min.css" rel="stylesheet" type="text/css" />
+    <style>
+        .stats-premium-card {
+            position: relative;
+            border: 1px solid #e6ecf4;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 12px 24px rgba(17, 24, 39, 0.08);
+            transition: transform .2s ease, box-shadow .2s ease;
+            background: linear-gradient(155deg, #ffffff 0%, #f7fafc 100%);
+        }
+        .stats-premium-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 18px 34px rgba(17, 24, 39, 0.12);
+        }
+        .stats-premium-card::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 5px;
+            height: 100%;
+            opacity: .95;
+        }
+        .stats-premium-card.card-sales::before { background: #0f766e; }
+        .stats-premium-card.card-products::before { background: #0369a1; }
+        .stats-premium-card.card-customers::before { background: #b45309; }
+        .stats-premium-card.card-payments::before { background: #1d4ed8; }
+        .stats-premium-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+        }
+        .stats-premium-value {
+            font-size: 1.55rem;
+            font-weight: 700;
+            letter-spacing: .2px;
+            color: #0f172a;
+            margin-bottom: .45rem;
+            line-height: 1.2;
+        }
+        .stats-premium-link {
+            font-weight: 600;
+            font-size: .88rem;
+            text-decoration: none;
+            border-bottom: 1px dashed currentColor;
+            padding-bottom: 2px;
+        }
+        .stats-premium-title {
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: .6px;
+            font-size: .76rem;
+            font-weight: 700;
+            margin-bottom: .6rem;
+        }
+        .stats-premium-chip {
+            border-radius: 999px;
+            font-size: .72rem;
+            font-weight: 600;
+            padding: .26rem .55rem;
+            background: #e2e8f0;
+            color: #334155;
+            white-space: nowrap;
+        }
+    </style>
 
 </head>
 
@@ -160,119 +229,87 @@ $toplam_odeme = $stmt->fetchColumn();
 
                                 <div class="row">
                                     <div class="col-xl-3 col-md-6">
-                                        <!-- card -->
-                                        <div class="card card-animate">
-                                            <div class="card-body">
-                                                <div class="d-flex align-items-center">
-                                                    <div class="flex-grow-1 overflow-hidden">
-                                                        <p class="text-uppercase fw-medium text-muted text-truncate mb-0"> Toplam Satış</p>
-                                                    </div>
-                                                    <div class="flex-shrink-0">
-                                                        <h5 class="text-success fs-14 mb-0">
-                                                            <i class="ri-arrow-right-up-line fs-13 align-middle"></i> 
-                                                        </h5>
-                                                    </div>
-                                                </div>
-                                                <div class="d-flex align-items-end justify-content-between mt-4">
+                                        <div class="card stats-premium-card card-sales card-animate h-100">
+                                            <div class="card-body d-flex flex-column justify-content-between">
+                                                <div class="d-flex align-items-start justify-content-between mb-3">
                                                     <div>
-                                                        <h4 class="fs-22 fw-semibold ff-secondary mb-4">TRY<span class="counter-value" data-target="<?= $toplam_satis ?>">0</span> </h4>
-                                                         <a href="tum-satislar.php" class="text-decoration-underline">Satışlar</a>
+                                                        <p class="stats-premium-title">Toplam Satış</p>
+                                                        <div class="stats-premium-value">TRY <span class="counter-value" data-target="<?= $toplam_satis ?>">0</span></div>
                                                     </div>
-                                                    <div class="avatar-sm flex-shrink-0">
-                                                        <span class="avatar-title bg-success-subtle rounded fs-3">
-                                                            <i class="bx bx-dollar-circle text-success"></i>
-                                                        </span>
-                                                    </div>
+                                                    <span class="stats-premium-icon bg-success-subtle text-success">
+                                                        <i class="bx bx-dollar-circle"></i>
+                                                    </span>
                                                 </div>
-                                            </div><!-- end card body -->
-                                        </div><!-- end card -->
+                                                <div class="d-flex align-items-center justify-content-between">
+                                                    <a href="tum-satislar.php" class="stats-premium-link text-success">Satışlar</a>
+                                                    <span class="stats-premium-chip">Gelir</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div><!-- end col -->
 
                                     <div class="col-xl-3 col-md-6">
-                                        <!-- card -->
-                                        <div class="card card-animate">
-                                            <div class="card-body">
-                                                <div class="d-flex align-items-center">
-                                                    <div class="flex-grow-1 overflow-hidden">
-                                                     <p class="text-uppercase fw-medium text-muted text-truncate mb-0">Toplam Ürünler</p>
-                                                    </div>
-                                                    <div class="flex-shrink-0">
-                                                        <h5 class="text-danger fs-14 mb-0">
-                                                            <i class="ri-arrow-right-down-line fs-13 align-middle"></i> 
-                                                        </h5>
-                                                    </div>
-                                                </div>
-                                                <div class="d-flex align-items-end justify-content-between mt-4">
+                                        <div class="card stats-premium-card card-products card-animate h-100">
+                                            <div class="card-body d-flex flex-column justify-content-between">
+                                                <div class="d-flex align-items-start justify-content-between mb-3">
                                                     <div>
-                                                        <h4 class="fs-22 fw-semibold ff-secondary mb-4"><span class="counter-value" data-target="<?= $toplam_urun ?>">0</span></h4>
-                                                         <a href="urunler.php" class="text-decoration-underline">Ürünler</a>
+                                                        <p class="stats-premium-title">Toplam Ürün</p>
+                                                        <div class="stats-premium-value"><span class="counter-value" data-target="<?= $toplam_urun ?>">0</span></div>
                                                     </div>
-                                                    <div class="avatar-sm flex-shrink-0">
-                                                        <span class="avatar-title bg-info-subtle rounded fs-3">
-                                                            <i class="bx bx-shopping-bag text-info"></i>
-                                                        </span>
-                                                    </div>
+                                                    <span class="stats-premium-icon bg-info-subtle text-info">
+                                                        <i class="bx bx-shopping-bag"></i>
+                                                    </span>
                                                 </div>
-                                            </div><!-- end card body -->
-                                        </div><!-- end card -->
+                                                <div class="d-flex align-items-center justify-content-between">
+                                                    <a href="urunler.php" class="stats-premium-link text-info">Ürünler</a>
+                                                    <span class="stats-premium-chip">Stok</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div><!-- end col -->
 
                                     <div class="col-xl-3 col-md-6">
-                                        <!-- card -->
-                                        <div class="card card-animate">
-                                            <div class="card-body">
-                                                <div class="d-flex align-items-center">
-                                                    <div class="flex-grow-1 overflow-hidden">
-                                                        <p class="text-uppercase fw-medium text-muted text-truncate mb-0">Müşteriler</p>
-                                                    </div>
-                                                    <div class="flex-shrink-0">
-                                                        <h5 class="text-success fs-14 mb-0">
-                                                            <i class="ri-arrow-right-up-line fs-13 align-middle"></i> 
-                                                        </h5>
-                                                    </div>
-                                                </div>
-                                                <div class="d-flex align-items-end justify-content-between mt-4">
+                                        <div class="card stats-premium-card card-customers card-animate h-100">
+                                            <div class="card-body d-flex flex-column justify-content-between">
+                                                <div class="d-flex align-items-start justify-content-between mb-3">
                                                     <div>
-                                                        <h4 class="fs-22 fw-semibold ff-secondary mb-4"><span class="counter-value" data-target="<?= $toplam_musteri ?>">0</span> </h4>
-                                                        <a href="tum-musteriler.php" class="text-decoration-underline">Müşteriler</a>
+                                                        <p class="stats-premium-title">Müşteri</p>
+                                                        <div class="stats-premium-value"><span class="counter-value" data-target="<?= $toplam_musteri ?>">0</span></div>
                                                     </div>
-                                                    <div class="avatar-sm flex-shrink-0">
-                                                        <span class="avatar-title bg-warning-subtle rounded fs-3">
-                                                            <i class="bx bx-user-circle text-warning"></i>
-                                                        </span>
-                                                    </div>
+                                                    <span class="stats-premium-icon bg-warning-subtle text-warning">
+                                                        <i class="bx bx-user-circle"></i>
+                                                    </span>
                                                 </div>
-                                            </div><!-- end card body -->
-                                        </div><!-- end card -->
+                                                <div class="d-flex align-items-center justify-content-between">
+                                                    <a href="tum-musteriler.php" class="stats-premium-link text-warning">Müşteriler</a>
+                                                    <span class="stats-premium-chip">CRM</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div><!-- end col -->
 
                                     <div class="col-xl-3 col-md-6">
-                                        <!-- card -->
-                                        <div class="card card-animate">
-                                            <div class="card-body">
-                                                <div class="d-flex align-items-center">
-                                                    <div class="flex-grow-1 overflow-hidden">
-                                                        <p class="text-uppercase fw-medium text-muted text-truncate mb-0"> Ödemeler</p>
-                                                    </div>
-                                                    
-                                                </div>
-                                                <div class="d-flex align-items-end justify-content-between mt-4">
+                                        <div class="card stats-premium-card card-payments card-animate h-100">
+                                            <div class="card-body d-flex flex-column justify-content-between">
+                                                <div class="d-flex align-items-start justify-content-between mb-3">
                                                     <div>
-                                                        <h4 class="fs-22 fw-semibold ff-secondary mb-4">TRY<span class="counter-value" data-target="<?= $toplam_odeme ?>">0</span> </h4>
-                                                        <a href="tum-odemeler.php" class="text-decoration-underline">Ödemeler</a>
+                                                        <p class="stats-premium-title">Toplam Ödeme</p>
+                                                        <div class="stats-premium-value">TRY <span class="counter-value" data-target="<?= $toplam_odeme ?>">0</span></div>
                                                     </div>
-                                                    <div class="avatar-sm flex-shrink-0">
-                                                        <span class="avatar-title bg-primary-subtle rounded fs-3">
-                                                            <i class="bx bx-wallet text-primary"></i>
-                                                        </span>
-                                                    </div>
+                                                    <span class="stats-premium-icon bg-primary-subtle text-primary">
+                                                        <i class="bx bx-wallet"></i>
+                                                    </span>
                                                 </div>
-                                            </div><!-- end card body -->
-                                        </div><!-- end card -->
+                                                <div class="d-flex align-items-center justify-content-between">
+                                                    <a href="tum-odemeler.php" class="stats-premium-link text-primary">Ödemeler</a>
+                                                    <span class="stats-premium-chip">Nakit</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div><!-- end col -->
                                 </div> <!-- end row-->
 
-                                <div class="row">
+                                          <div class="row mt-4 pt-1">
                              <?php
 $aylar_tr = [
     1 => 'Ocak', 2 => 'Şubat', 3 => 'Mart', 4 => 'Nisan',
