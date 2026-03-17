@@ -490,7 +490,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         <span class="brand-pill">Kurumsal görünüm</span>
                         <span class="brand-pill">Hızlı tahsilat akışı</span>
                         <span class="brand-pill">Profesyonel raporlama</span>
-                        <span class="brand-pill">Seyda AŞAN</span>
+                        <span class="brand-pill">Seyda AŞAN | Web tasarım ve Yazılım</span>
                     </div>
                 </div>
             </div>
