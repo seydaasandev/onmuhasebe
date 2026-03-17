@@ -5,7 +5,7 @@ deployment:
       type: web
       default: true
       domain: kiranoglu.net
-      path: /home/kiranoglu/muhasebe
+      path: /home/kiranoglu/public_html/muhasebe
       exclude_paths:
         - .git
         - .gitignore
