@@ -4,8 +4,8 @@ deployment:
     production:
       type: web
       default: true
-      domain: nextario.com
-      path: /public_html/eski
+      domain: kiranoglu.net
+      path: /home/kiranoglu/muhasebe
       exclude_paths:
         - .git
         - .gitignore
