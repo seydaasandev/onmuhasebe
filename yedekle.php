@@ -14,6 +14,11 @@ $yedekDir = __DIR__ . '/yedekler/';
 $mesaj = '';
 $mesajTur = '';
 
+if (isset($_GET['durum']) && $_GET['durum'] === 'ok' && isset($_GET['dosya'])) {
+    $mesaj    = 'Yedek başarıyla oluşturuldu: <strong>' . htmlspecialchars(basename($_GET['dosya'])) . '</strong>';
+    $mesajTur = 'success';
+}
+
 // ----- YEDEK İNDİR -----
 if (isset($_GET['indir'])) {
     $dosya = basename($_GET['indir']);
@@ -80,8 +85,8 @@ if (isset($_POST['yedek_al'])) {
 
     file_put_contents($tamYol, $sql);
 
-    $mesaj    = 'Yedek başarıyla oluşturuldu: <strong>' . htmlspecialchars($dosyaAdi) . '</strong>';
-    $mesajTur = 'success';
+    header('Location: yedekle.php?durum=ok&dosya=' . urlencode($dosyaAdi));
+    exit;
 }
 
 // ----- MEVCUT YEDEKLERİ LİSTELE -----
