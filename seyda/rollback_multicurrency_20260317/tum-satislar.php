@@ -1,10 +1,7 @@
 <?php
 require "config.php";
 require "auth.php";
-if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id'])) {
-    header("Location: index.php"); 
-    exit;
-}
+
 $user_id = $_SESSION['user_id'];
 // Kullanıcı rolünü çek
 $stmt = $db->prepare("SELECT role FROM users WHERE id = ?");
@@ -16,7 +13,6 @@ if (strtolower($role) === 'user') {
     header("Location: 403.php");
     exit;
 }
-
 ?>
 <!doctype html>
 <html lang="tr" data-layout="vertical" data-topbar="dark" data-sidebar="dark" data-sidebar-size="lg" data-sidebar-image="https://www.nextario.com/eski/assets/images/sidebar/img-4.jpg" data-preloader="enable" data-theme="material" data-theme-colors="#themeColor-02">
@@ -24,13 +20,20 @@ if (strtolower($role) === 'user') {
 <head>
 
      <meta charset="utf-8" />
-    <title>Ürünler | Nextario Muhasebe Programı</title>
+    <title>Satışlar | Nextario Muhasebe Programı</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta content="Müşteri takip, stok ,ödeme takip muhasebe programı" name="description" />
     <meta content="Nextario" name="author" />
     <!-- App favicon -->
     <link rel="shortcut icon" href="assets/images/favicon.ico">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+     <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <!--datatable css-->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" />
+    <!--datatable responsive css-->
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.2.9/css/responsive.bootstrap.min.css" />
+
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.2.2/css/buttons.dataTables.min.css">
+   
 
     <!--datatable js-->
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
@@ -43,13 +46,6 @@ if (strtolower($role) === 'user') {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
 
-    <script src="assets/js/pages/datatables.init.js"></script>
-    <!--datatable css-->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" />
-    <!--datatable responsive css-->
-    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.2.9/css/responsive.bootstrap.min.css" />
-
-    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.2.2/css/buttons.dataTables.min.css">
 
 
     <!-- Layout config Js -->
@@ -91,12 +87,12 @@ if (strtolower($role) === 'user') {
                     <div class="row">
                         <div class="col-12">
                             <div class="page-title-box d-sm-flex align-items-center justify-content-between bg-galaxy-transparent">
-                                <h4 class="mb-sm-0">Ürünler</h4>
+                                <h4 class="mb-sm-0">Satışlar</h4>
 
                                 <div class="page-title-right">
                                     <ol class="breadcrumb m-0">
                                         <li class="breadcrumb-item"><a href="javascript: void(0);">Nextario</a></li>
-                                        <li class="breadcrumb-item active">Ürünler</li>
+                                        <li class="breadcrumb-item active">Satışlar</li>
                                     </ol>
                                 </div>
 
@@ -111,39 +107,44 @@ if (strtolower($role) === 'user') {
                         <div class="col-lg-12">
                             <div class="card">
                                 <div class="card-header">
-                                    <h5 class="card-title mb-0">Ürünler Tablosu</h5>
+                                    <h5 class="card-title mb-0">Satışlar Tablosu</h5>
                                 </div>
                                 <div class="card-body">
-                                   <div class="table-responsive"> 
-                                <table id="urunler" class="display table table-bordered dt-responsive dataTable dtr-inline collapsed" style="width:100%">
-                                    
+                                    <div class="row mb-3">
+    <div class="col-md-3">
+        <input type="date" id="start_date" class="form-control">
+    </div>
+    <div class="col-md-3">
+        <input type="date" id="end_date" class="form-control">
+    </div>
+    <div class="col-md-2">
+        <button id="filterBtn" class="btn btn-primary">Filtrele</button>
+    </div>
+</div>
+                              <table id="satislar" class="display table table-bordered dt-responsive dataTable dtr-inline collapsed" style="width:100%">
     <thead>
         <tr>
             <th>ID</th>
-            <th>Resim</th>
-            <th>Ürün Adı</th>
-             <th>Barkod</th>
-            <th>Stok</th>
-            <th>Ana Kategori</th>
-            <th>Marka</th>
-            <th>Model</th>
-            <th>Cins</th>
-            <th>Kategori</th>
-            <th>Raf Bölümü</th>
+            <th>İşlem No</th>
+            <th>Müşteri</th>
+            <th>Ürün</th>
+            <th>Adet</th>
+            <th>Birim Fiyat</th>
             <th>KDV</th>
-            <th>Satış Fiyatı</th>
-            <th>Web</th>
-            
-          
-            <th>İşlemler</th>
+            <th>İndirim</th>
+            <th>Genel Toplam</th>
+            <th>Satışı Yapan</th>
+            <th>Tarih</th>
+            <th>İşlem</th>
         </tr>
     </thead>
+    
 </table>
-  <script>
+<script>
 $(document).ready(function () {
 
     /* 🔥 TABLOYU DEĞİŞKENE ATA */
-    var table = $('#urunler').DataTable({
+    var table = $('#satislar').DataTable({
         processing: true,
         serverSide: true,
         pageLength: 100,
@@ -161,9 +162,12 @@ $(document).ready(function () {
         ],
 
         ajax: {
-            url: "ajax/urunler.php",
+            url: "ajax/satislar.php",
             type: "POST",
-           
+            data: function (d) {
+                d.start_date = $('#start_date').val();
+                d.end_date   = $('#end_date').val();
+            }
         },
 
         columnDefs: [
@@ -178,8 +182,10 @@ $(document).ready(function () {
 
 });
 </script>
+
+
                                     </div>
-                                </div> </div>
+                                </div>
                             </div>
                         </div>
                     </div><!--end row-->
@@ -226,18 +232,20 @@ $(document).ready(function () {
         </div>
     </div>
 
+   
+
     <!-- JAVASCRIPT -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 document.addEventListener('click', function(e) {
-    const btn = e.target.closest('.urunSilBtn');
-    if (!btn) return;
+    const silBtn = e.target.closest('.satisSilBtn');
+    if (!silBtn) return;
 
     e.preventDefault();
-    let urunID = btn.getAttribute("data-id");
+    let satisID = silBtn.getAttribute("data-id");
 
     Swal.fire({
-        title: "Ürünü silmek istediğinize emin misiniz?",
+        title: "Satışı silmek istediğinize emin misiniz?",
         html: "Bu işlem geri alınamaz!",
         icon: "warning",
         showCancelButton: false,
@@ -259,24 +267,24 @@ document.addEventListener('click', function(e) {
 
             swalContainer.appendChild(customButtons);
 
-            const silBtn = document.getElementById("swal-sil-btn");
-            const iptalBtn = document.getElementById("swal-iptal-btn");
+            const silBtnModal = document.getElementById("swal-sil-btn");
+            const iptalBtnModal = document.getElementById("swal-iptal-btn");
 
-            // Sil butonu: click ve touchend
-            silBtn.addEventListener("click", () => {
-                window.location.href = "islem.php?islem=urun_sil&id=" + urunID;
+            silBtnModal.addEventListener("click", () => {
+                window.location.href = "islem.php?islem=satis_sil&id=" + satisID;
             });
-            silBtn.addEventListener("touchend", () => {
-                window.location.href = "islem.php?islem=urun_sil&id=" + urunID;
+            silBtnModal.addEventListener("touchend", () => {
+                window.location.href = "islem.php?islem=satis_sil&id=" + satisID;
             });
 
-            // İptal butonu: click ve touchend
-            iptalBtn.addEventListener("click", () => Swal.close());
-            iptalBtn.addEventListener("touchend", () => Swal.close());
+            iptalBtnModal.addEventListener("click", () => Swal.close());
+            iptalBtnModal.addEventListener("touchend", () => Swal.close());
         }
     });
 });
+
 </script>
+
 
 
 
@@ -285,11 +293,12 @@ document.addEventListener('click', function(e) {
 
 <?php if(isset($_SESSION['mesaj'])): ?>
 <script>
-<?php if($_SESSION['mesaj'] == "ekle_ok"): ?>
+<?php if($_SESSION['mesaj'] == "satis_ok"): ?>
 Swal.fire({
     icon: 'success',
     title: 'Başarılı!',
-    text: 'Ürün başarıyla eklendi.',
+    text: 'Satış başarıyla eklendi.',
+    confirmButtonText: 'Tamam'
 });
 <?php endif; ?>
 
@@ -297,7 +306,8 @@ Swal.fire({
 Swal.fire({
     icon: 'error',
     title: 'Hata!',
-    text: 'Ürün eklenirken bir hata oluştu.',
+    text: 'Satış eklenirken bir hata oluştu.',
+    confirmButtonText: 'Tamam'
 });
 <?php endif; ?>
 
@@ -305,7 +315,8 @@ Swal.fire({
 Swal.fire({
     icon: 'success',
     title: 'Silindi!',
-    text: 'Ürün başarıyla silindi.',
+    text: 'Satış başarıyla silindi.',
+    confirmButtonText: 'Tamam'
 });
 <?php endif; ?>
 
@@ -314,6 +325,7 @@ Swal.fire({
     icon: 'error',
     title: 'Silinemedi!',
     text: 'Silme işleminde bir hata oluştu.',
+    confirmButtonText: 'Tamam'
 });
 <?php endif; ?>
 </script>
@@ -327,8 +339,10 @@ Swal.fire({
     <script src="assets/js/plugins.js"></script>
 
     
+
     <!-- App js -->
     <script src="assets/js/app.js"></script>
+   
 </body>
 
 </html>

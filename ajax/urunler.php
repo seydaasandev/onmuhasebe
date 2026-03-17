@@ -4,6 +4,34 @@ error_reporting(E_ALL);
 require "../config.php";
 header('Content-Type: application/json; charset=utf-8');
 
+function get_live_rates(PDO $db): array {
+    $rates = ['TRY' => 1.0, 'EUR' => 1.0, 'USD' => 1.0, 'GBP' => 1.0];
+    $q = $db->query("SELECT para_birimi, kur FROM doviz_kurlari WHERE para_birimi IN ('TRY','EUR','USD','GBP')");
+    foreach ($q as $r) {
+        $pb = strtoupper((string)$r['para_birimi']);
+        $kur = (float)$r['kur'];
+        if ($kur > 0 && isset($rates[$pb])) {
+            $rates[$pb] = $kur;
+        }
+    }
+    $rates['TRY'] = 1.0;
+    return $rates;
+}
+
+function format_multi_currency_cell(float $eur, array $rates): string {
+    $eur = (float)$eur;
+    $tl = $rates['EUR'] > 0 ? $eur * $rates['EUR'] : 0;
+    $usd = $rates['USD'] > 0 ? $tl / $rates['USD'] : 0;
+    $gbp = $rates['GBP'] > 0 ? $tl / $rates['GBP'] : 0;
+
+    return '<div><strong>€ ' . number_format($eur, 2, ',', '.') . '</strong></div>'
+        . '<div class="text-muted" style="font-size:11px;line-height:1.3;">'
+        . '₺ ' . number_format($tl, 2, ',', '.') . ' | '
+        . '$ ' . number_format($usd, 2, ',', '.') . ' | '
+        . '£ ' . number_format($gbp, 2, ',', '.')
+        . '</div>';
+}
+
 /* =====================================================
    REQUEST
 ===================================================== */
@@ -18,7 +46,8 @@ $endDate    = $_POST['end_date'] ?? '';
 /* =====================================================
    CACHE
 ===================================================== */
-$cacheKey = md5(json_encode([$search, $startDate, $endDate, $start, $length]));
+$cacheVersion = 'urunler_v4_multi_currency_eur';
+$cacheKey = md5(json_encode([$cacheVersion, $search, $startDate, $endDate, $start, $length]));
 $cacheDir  = __DIR__ . '/cacheurunler/';
 $cacheFile = $cacheDir . $cacheKey . '.json';
 
@@ -49,6 +78,8 @@ if ($search !== '') {
         u.urun_adi LIKE :search
         OR u.barkod LIKE :search
         OR u.marka LIKE :search
+        OR ak.ad LIKE :search
+        OR mo.ad LIKE :search
         OR u.raf_bolumu LIKE :search
     )";
     $params[':search'] = "%$search%";
@@ -71,6 +102,8 @@ $total = $db->query("
 $stmt = $db->prepare("
     SELECT COUNT(*)
     FROM urunler u
+    LEFT JOIN ana_kategoriler ak ON ak.id = u.ana_kategori_id
+    LEFT JOIN modeller mo ON mo.id = u.model_id
     WHERE $where
 ");
 $stmt->execute($params);
@@ -86,14 +119,19 @@ SELECT
     u.urun_adi,
     u.barkod,
     u.stok,
+    COALESCE(ak.ad, '') AS ana_kategori,
     u.marka,
+    COALESCE(mo.ad, '') AS model,
     u.cins,
     u.kategori,
     u.kdv,
     u.satis_fiyat,
+    u.satis_euro,
     u.web,
     u.raf_bolumu
 FROM urunler u
+LEFT JOIN ana_kategoriler ak ON ak.id = u.ana_kategori_id
+LEFT JOIN modeller mo ON mo.id = u.model_id
 WHERE $where
 ORDER BY u.id DESC
 LIMIT :start, :length
@@ -109,6 +147,7 @@ $stmt->bindValue(':length', $length, PDO::PARAM_INT);
 $stmt->execute();
 
 $data = [];
+$rates = get_live_rates($db);
 
 while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
     $resimHtml = '';
@@ -117,18 +156,25 @@ while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $resimHtml = '<img src="' . $resimUrl . '" alt="Urun resmi" style="width:65px;height:65px;object-fit:cover;border-radius:6px;border:1px solid #ddd;">';
     }
 
+    $eurPrice = (float)($r['satis_euro'] ?? 0);
+    if ($eurPrice <= 0 && $rates['EUR'] > 0) {
+        $eurPrice = (float)($r['satis_fiyat'] ?? 0) / $rates['EUR'];
+    }
+
     $data[] = [
         $r['id'],
         $resimHtml,
         $r['urun_adi'],
         $r['barkod'],
         $r['stok'],
+        $r['ana_kategori'] ?? '',
         $r['marka'],
+        $r['model'] ?? '',
         $r['cins'],
         $r['kategori'] ?? '',
         $r['raf_bolumu'] ?? '',
         $r['kdv'],
-        number_format($r['satis_fiyat'], 2, ',', '.'),
+        format_multi_currency_cell($eurPrice, $rates),
         $r['web'] ? 'Evet' : 'Hayır',
         '<a href="urun-duzenle.php?id='.$r['id'].'" class="btn btn-sm btn-primary">Düzenle</a>
          <a href="javascript:void(0)" class="btn btn-sm btn-danger urunSilBtn" data-id="'.$r['id'].'">Sil</a>'

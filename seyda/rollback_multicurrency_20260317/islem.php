@@ -96,21 +96,6 @@ function urun_resmi_yukle($inputName, $mevcutResim = '')
     ];
 }
 
-function get_rates_map(PDO $db): array
-{
-    $rates = ['TRY' => 1.0, 'EUR' => 0.0, 'USD' => 0.0, 'GBP' => 0.0];
-    $rows = $db->query("SELECT para_birimi, kur FROM doviz_kurlari WHERE para_birimi IN ('TRY','EUR','USD','GBP')")->fetchAll(PDO::FETCH_ASSOC);
-    foreach ($rows as $row) {
-        $pb = strtoupper((string)$row['para_birimi']);
-        $kur = (float)$row['kur'];
-        if (isset($rates[$pb]) && $kur > 0) {
-            $rates[$pb] = $kur;
-        }
-    }
-    $rates['TRY'] = 1.0;
-    return $rates;
-}
-
 /* =========================================
    ÜRÜN SİLME İŞLEMİ
 ========================================= */
@@ -176,9 +161,6 @@ if (isset($_GET['islem']) && $_GET['islem'] == "urun_duzenle") {
     $raf_bolumu = $_POST['raf_bolumu'] ?? '';
     $kdv = $_POST['kdv'];
     $satis_fiyat = (float)($_POST['satis_fiyat'] ?? 0);
-    $satis_euro = (float)($_POST['satis_euro'] ?? 0);
-    $satis_dolar = (float)($_POST['satis_dolar'] ?? 0);
-    $satis_sterlin = (float)($_POST['satis_sterlin'] ?? 0);
     $barkod = $_POST['barkod'];
     $ana_kategori_id = (int)($_POST['ana_kategori_id'] ?? 0) ?: null;
     $marka_id        = (int)($_POST['marka_id']        ?? 0) ?: null;
@@ -202,13 +184,6 @@ if (isset($_GET['islem']) && $_GET['islem'] == "urun_duzenle") {
         $kategori = (string)($s->fetchColumn() ?: '');
     }
 
-    $rates = get_rates_map($db);
-    if ($satis_euro > 0 && $rates['EUR'] > 0) {
-        $satis_fiyat = round($satis_euro * $rates['EUR'], 2);
-    } elseif ($satis_fiyat > 0 && $rates['EUR'] > 0 && $satis_euro <= 0) {
-        $satis_euro = round($satis_fiyat / $rates['EUR'], 2);
-    }
-
     $update = $db->prepare("UPDATE urunler SET 
         urun_adi=?, 
         stok=?, 
@@ -218,9 +193,6 @@ if (isset($_GET['islem']) && $_GET['islem'] == "urun_duzenle") {
         raf_bolumu=?,
         kdv=?, 
         satis_fiyat=?, 
-        satis_euro=?,
-        satis_dolar=?,
-        satis_sterlin=?,
         barkod=?, 
         web=?,
         resim=?,
@@ -238,9 +210,6 @@ if (isset($_GET['islem']) && $_GET['islem'] == "urun_duzenle") {
         $raf_bolumu,
         $kdv,
         $satis_fiyat,
-        $satis_euro,
-        $satis_dolar,
-        $satis_sterlin,
         $barkod,
         (int)($_POST['web'] ?? 0),
         $upload['path'],
@@ -286,9 +255,6 @@ if (isset($_GET['islem']) && $_GET['islem'] == "urun_ekle") {
     $kdv        = $_POST['kdv'] ?? 0;
     $barkod     = $_POST['barkod'] ?? '';
     $satis_fiyat = (float)($_POST['satis_fiyat'] ?? 0);
-    $satis_euro = (float)($_POST['satis_euro'] ?? 0);
-    $satis_dolar = (float)($_POST['satis_dolar'] ?? 0);
-    $satis_sterlin = (float)($_POST['satis_sterlin'] ?? 0);
     $ana_kategori_id = (int)($_POST['ana_kategori_id'] ?? 0) ?: null;
     $marka_id        = (int)($_POST['marka_id']        ?? 0) ?: null;
     $model_id        = (int)($_POST['model_id']        ?? 0) ?: null;
@@ -311,13 +277,6 @@ if (isset($_GET['islem']) && $_GET['islem'] == "urun_ekle") {
         $kategori = (string)($s->fetchColumn() ?: '');
     }
 
-    $rates = get_rates_map($db);
-    if ($satis_euro > 0 && $rates['EUR'] > 0) {
-        $satis_fiyat = round($satis_euro * $rates['EUR'], 2);
-    } elseif ($satis_fiyat > 0 && $rates['EUR'] > 0 && $satis_euro <= 0) {
-        $satis_euro = round($satis_fiyat / $rates['EUR'], 2);
-    }
-
     $upload = urun_resmi_yukle('resim', '');
     if (!$upload['ok']) {
         $_SESSION['mesaj'] = "ekle_no";
@@ -334,8 +293,8 @@ if (isset($_GET['islem']) && $_GET['islem'] == "urun_ekle") {
 
     $ekle = $db->prepare("
         INSERT INTO urunler 
-        (urun_adi, stok, marka, cins, kategori, raf_bolumu, kdv, barkod, satis_fiyat, satis_euro, satis_dolar, satis_sterlin, web, resim, ana_kategori_id, marka_id, model_id, cins_id, kategori_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (urun_adi, stok, marka, cins, kategori, raf_bolumu, kdv, barkod, satis_fiyat, web, resim, ana_kategori_id, marka_id, model_id, cins_id, kategori_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
 
     $sonuc = $ekle->execute([
@@ -348,9 +307,6 @@ if (isset($_GET['islem']) && $_GET['islem'] == "urun_ekle") {
         $kdv,
         $barkod,
         $satis_fiyat,
-        $satis_euro,
-        $satis_dolar,
-        $satis_sterlin,
         (int)($_POST['web'] ?? 0),
         $upload['path'],
         $ana_kategori_id,
@@ -1070,7 +1026,7 @@ if (isset($_GET['islem']) && $_GET['islem'] === "satis_duzenle") {
         }
 
         // 3️⃣ Ürün bilgilerini al (fiyat, kdv için)
-        $urun = $db->prepare("SELECT urun_adi, satis_euro, satis_fiyat, kdv FROM urunler WHERE id = ?");
+        $urun = $db->prepare("SELECT urun_adi, satis_fiyat, kdv FROM urunler WHERE id = ?");
         $urun->execute([$urun_id]);
         $urunBilgi = $urun->fetch(PDO::FETCH_ASSOC);
 
@@ -1079,11 +1035,7 @@ if (isset($_GET['islem']) && $_GET['islem'] === "satis_duzenle") {
         }
 
         // 4️⃣ KDV ve toplam hesapla
-        $rates = get_rates_map($db);
-        $birim_fiyat = (float)($urunBilgi['satis_euro'] ?? 0);
-        if ($birim_fiyat <= 0 && $rates['EUR'] > 0) {
-            $birim_fiyat = (float)$urunBilgi['satis_fiyat'] / $rates['EUR'];
-        }
+        $birim_fiyat = (float)$urunBilgi['satis_fiyat'];
         $kdv_orani = (float)$urunBilgi['kdv'];
         $tutar = $birim_fiyat * $adet;
         $kdv_toplami = ($tutar * $kdv_orani) / 100;
@@ -1255,7 +1207,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && $_GET['islem'] === 'satis_guncelle'
 
         /* 3️⃣ ÜRÜN BİLGİSİ */
         $stmt = $db->prepare("
-            SELECT stok, satis_euro, satis_fiyat 
+            SELECT stok, satis_fiyat 
             FROM urunler 
             WHERE id = ?
         ");
@@ -1274,12 +1226,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && $_GET['islem'] === 'satis_guncelle'
         /* 5️⃣ TUTAR HESAPLA
            tutar = (adet × satış_fiyat) + kdv_toplam
         */
-        $rates = get_rates_map($db);
-        $birimFiyatEur = (float)($urun['satis_euro'] ?? 0);
-        if ($birimFiyatEur <= 0 && $rates['EUR'] > 0) {
-            $birimFiyatEur = (float)$urun['satis_fiyat'] / $rates['EUR'];
-        }
-        $tutar = ($adet * $birimFiyatEur) + $kdv_toplam;
+        $tutar = ($adet * $urun['satis_fiyat']) + $kdv_toplam;
 
         /* 6️⃣ SATIŞ GÜNCELLE */
         $db->prepare("
@@ -1860,181 +1807,26 @@ if ($_GET['islem'] == 'kategori_sil') {
 ================================ */
 if ($_GET['islem'] == 'kur_guncelle') {
 
-    $paraBirimleri = $_POST['para_birimi'] ?? [];
-    $alislar = $_POST['alis_kur'] ?? [];
-    $satislar = $_POST['satis_kur'] ?? [];
-    $kurlar = $_POST['kur'] ?? [];
+    $kur = (float)$_POST['kur'];
 
-    if (!is_array($paraBirimleri) || empty($paraBirimleri)) {
+    if ($kur <= 0) {
         $_SESSION['mesaj'] = 'hata';
         header("Location: kur.php");
         exit;
     }
 
-    try {
-        $db->beginTransaction();
+    // tek kayıt kontrol
+    $id = $db->query("SELECT id FROM kur LIMIT 1")->fetchColumn();
 
-        $upsert = $db->prepare(" 
-            INSERT INTO doviz_kurlari (para_birimi, alis_kur, satis_kur, kur, kaynak, son_guncelleme)
-            VALUES (?, ?, ?, ?, 'manuel', NOW())
-            ON DUPLICATE KEY UPDATE
-                alis_kur = VALUES(alis_kur),
-                satis_kur = VALUES(satis_kur),
-                kur = VALUES(kur),
-                kaynak = 'manuel',
-                son_guncelleme = NOW()
-        ");
-
-        foreach ($paraBirimleri as $pbRaw) {
-            $pb = strtoupper(trim((string)$pbRaw));
-            if ($pb === '') {
-                continue;
-            }
-
-            $alis = (float)($alislar[$pb] ?? 0);
-            $satis = (float)($satislar[$pb] ?? 0);
-            $kur = (float)($kurlar[$pb] ?? 0);
-
-            if ($pb === 'TRY') {
-                $alis = 1;
-                $satis = 1;
-                $kur = 1;
-            } else {
-                if ($alis <= 0 && $satis > 0) $alis = $satis;
-                if ($satis <= 0 && $alis > 0) $satis = $alis;
-                if ($kur <= 0) $kur = $satis > 0 ? $satis : $alis;
-            }
-
-            if ($alis <= 0 || $satis <= 0 || $kur <= 0) {
-                continue;
-            }
-
-            $upsert->execute([$pb, $alis, $satis, $kur]);
-        }
-
-        // Eski yapıyı bozmayalım: kur tablosunda EUR kuru tutulmaya devam etsin
-        $eurKur = $db->prepare("SELECT kur FROM doviz_kurlari WHERE para_birimi='EUR' LIMIT 1");
-        $eurKur->execute();
-        $eur = (float)$eurKur->fetchColumn();
-        if ($eur > 0) {
-            $id = $db->query("SELECT id FROM kur LIMIT 1")->fetchColumn();
-            if ($id) {
-                $db->prepare("UPDATE kur SET kur=? WHERE id=?")->execute([$eur, $id]);
-            } else {
-                $db->prepare("INSERT INTO kur (kur) VALUES (?)")->execute([$eur]);
-            }
-        }
-
-        $db->commit();
-        $_SESSION['mesaj'] = 'duzenle_ok';
-    } catch (Exception $e) {
-        if ($db->inTransaction()) {
-            $db->rollBack();
-        }
-        $_SESSION['mesaj'] = 'hata';
+    if ($id) {
+        $stmt = $db->prepare("UPDATE kur SET kur=? WHERE id=?");
+        $sonuc = $stmt->execute([$kur, $id]);
+    } else {
+        $stmt = $db->prepare("INSERT INTO kur (kur) VALUES (?)");
+        $sonuc = $stmt->execute([$kur]);
     }
 
-    header("Location: kur.php");
-    exit;
-}
-
-/* ===============================
-   KUR OTOMATİK ÇEK (SUNDOVIZ)
-================================ */
-if ($_GET['islem'] == 'kur_oto_cek') {
-
-    $url = 'https://online.sundoviz.com/services/api.php';
-    $json = '';
-
-    if (function_exists('curl_init')) {
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-        $json = (string)curl_exec($ch);
-        curl_close($ch);
-    }
-
-    if ($json === '' && ini_get('allow_url_fopen')) {
-        $json = (string)@file_get_contents($url);
-    }
-
-    $liste = json_decode($json, true);
-    if (!is_array($liste)) {
-        $_SESSION['mesaj'] = 'hata';
-        header("Location: kur.php");
-        exit;
-    }
-
-    $hedef = ['EUR', 'USD', 'GBP'];
-    $bulunan = [];
-    foreach ($liste as $satir) {
-        $pb = strtoupper(trim((string)($satir['dovizcins'] ?? '')));
-        if (!in_array($pb, $hedef, true)) {
-            continue;
-        }
-        $alis = (float)($satir['alisKur'] ?? 0);
-        $satis = (float)($satir['satisKur'] ?? 0);
-        $degisim = !empty($satir['sonDegisiklik']) ? date('Y-m-d H:i:s', strtotime($satir['sonDegisiklik'])) : date('Y-m-d H:i:s');
-
-        if ($alis > 0 && $satis > 0) {
-            $bulunan[$pb] = [
-                'alis' => $alis,
-                'satis' => $satis,
-                'kur' => $satis,
-                'son' => $degisim,
-            ];
-        }
-    }
-
-    if (empty($bulunan)) {
-        $_SESSION['mesaj'] = 'hata';
-        header("Location: kur.php");
-        exit;
-    }
-
-    try {
-        $db->beginTransaction();
-
-        $upsert = $db->prepare(" 
-            INSERT INTO doviz_kurlari (para_birimi, alis_kur, satis_kur, kur, kaynak, son_guncelleme)
-            VALUES (?, ?, ?, ?, 'sundoviz', ?)
-            ON DUPLICATE KEY UPDATE
-                alis_kur = VALUES(alis_kur),
-                satis_kur = VALUES(satis_kur),
-                kur = VALUES(kur),
-                kaynak = 'sundoviz',
-                son_guncelleme = VALUES(son_guncelleme)
-        ");
-
-        // TRY sabit
-        $upsert->execute(['TRY', 1, 1, 1, date('Y-m-d H:i:s')]);
-
-        foreach ($bulunan as $pb => $v) {
-            $upsert->execute([$pb, $v['alis'], $v['satis'], $v['kur'], $v['son']]);
-        }
-
-        // Eski kur tablosu: EUR
-        if (!empty($bulunan['EUR']['kur'])) {
-            $eur = (float)$bulunan['EUR']['kur'];
-            $id = $db->query("SELECT id FROM kur LIMIT 1")->fetchColumn();
-            if ($id) {
-                $db->prepare("UPDATE kur SET kur=? WHERE id=?")->execute([$eur, $id]);
-            } else {
-                $db->prepare("INSERT INTO kur (kur) VALUES (?)")->execute([$eur]);
-            }
-        }
-
-        $db->commit();
-        $_SESSION['mesaj'] = 'oto_ok';
-    } catch (Exception $e) {
-        if ($db->inTransaction()) {
-            $db->rollBack();
-        }
-        $_SESSION['mesaj'] = 'hata';
-    }
-
+    $_SESSION['mesaj'] = $sonuc ? 'duzenle_ok' : 'hata';
     header("Location: kur.php");
     exit;
 }
@@ -2045,81 +1837,16 @@ if ($_GET['islem'] == 'kur_oto_cek') {
 ================================ */
 if ($_GET['islem'] == 'urun_fiyat_guncelle') {
 
-    try {
-        $kurRows = $db->query("SELECT para_birimi, kur FROM doviz_kurlari WHERE para_birimi IN ('TRY','EUR','USD','GBP')")->fetchAll(PDO::FETCH_ASSOC);
-        $rates = ['TRY' => 1.0, 'EUR' => 0.0, 'USD' => 0.0, 'GBP' => 0.0];
+    $kur = $db->query("SELECT kur FROM kur LIMIT 1")->fetchColumn();
 
-        foreach ($kurRows as $row) {
-            $pb = strtoupper((string)$row['para_birimi']);
-            $kur = (float)$row['kur'];
-            if (isset($rates[$pb]) && $kur > 0) {
-                $rates[$pb] = $kur;
-            }
-        }
-
-        if ($rates['EUR'] <= 0 && $rates['USD'] <= 0 && $rates['GBP'] <= 0) {
-            $_SESSION['mesaj'] = 'hata';
-            $_SESSION['mesaj_detay'] = 'Geçerli EUR/USD/GBP kuru bulunamadı.';
-            header("Location: kur.php");
-            exit;
-        }
-
-        $db->beginTransaction();
-
-        $urunler = $db->query("SELECT id, satis_euro, satis_dolar, satis_sterlin FROM urunler WHERE durum = 0")->fetchAll(PDO::FETCH_ASSOC);
-        $upd = $db->prepare("UPDATE urunler SET satis_fiyat = ? WHERE id = ?");
-
-        $islenen = 0;
-        $guncellenen = 0;
-        foreach ($urunler as $u) {
-            $id = (int)$u['id'];
-            $eur = (float)($u['satis_euro'] ?? 0);
-            $usd = (float)($u['satis_dolar'] ?? 0);
-            $gbp = (float)($u['satis_sterlin'] ?? 0);
-            $mevcutTl = (float)($u['satis_fiyat'] ?? 0);
-
-            $yeniTl = null;
-            if ($eur > 0 && $rates['EUR'] > 0) {
-                $yeniTl = $eur * $rates['EUR'];
-            } elseif ($gbp > 0 && $rates['GBP'] > 0) {
-                $yeniTl = $gbp * $rates['GBP'];
-            } elseif ($usd > 0 && $rates['USD'] > 0) {
-                $yeniTl = $usd * $rates['USD'];
-            }
-
-            if ($yeniTl === null) {
-                continue;
-            }
-
-            $islenen++;
-            $yeniTl = round($yeniTl, 2);
-            $upd->execute([$yeniTl, $id]);
-            if (abs($mevcutTl - $yeniTl) >= 0.01) {
-                $guncellenen++;
-            }
-        }
-
-        $db->commit();
-
-        $_SESSION['mesaj'] = 'fiyat_ok';
-        $_SESSION['mesaj_detay'] = $islenen . ' ürün hesaplandı, ' . $guncellenen . ' ürünün TL satış fiyatı değişti.';
-    } catch (Exception $e) {
-        if ($db->inTransaction()) {
-            $db->rollBack();
-        }
+    if (!$kur) {
         $_SESSION['mesaj'] = 'hata';
-        $_SESSION['mesaj_detay'] = 'Ürün fiyatları güncellenirken hata oluştu.';
+        header("Location: kur.php");
+        exit;
     }
 
-    // Cache temizle
-    $cacheDir = __DIR__ . '/ajax/cacheurunler/';
-    if (is_dir($cacheDir)) {
-        $files = glob($cacheDir . '*.json');
-        foreach ($files as $file) {
-            unlink($file);
-        }
-    }
-
+    // Döviz sütunları kaldırıldığı için bu işlem devre dışı.
+    $_SESSION['mesaj'] = 'hata';
     header("Location: kur.php");
     exit;
 }

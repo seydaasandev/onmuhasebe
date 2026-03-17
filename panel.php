@@ -29,6 +29,9 @@ $toplam_musteri = $stmt->fetchColumn();
 $stmt = $db->query("SELECT COALESCE(SUM(tutar),0) FROM odemeler WHERE durum = 0");
 $toplam_odeme = $stmt->fetchColumn();
 
+$eur_kur_stmt = $db->query("SELECT kur FROM doviz_kurlari WHERE para_birimi='EUR' LIMIT 1");
+$eur_kur = (float)($eur_kur_stmt ? $eur_kur_stmt->fetchColumn() : 0);
+
 
 ?>
 
@@ -234,7 +237,7 @@ $toplam_odeme = $stmt->fetchColumn();
                                                 <div class="d-flex align-items-start justify-content-between mb-3">
                                                     <div>
                                                         <p class="stats-premium-title">Toplam Satış</p>
-                                                        <div class="stats-premium-value">TRY <span class="counter-value" data-target="<?= $toplam_satis ?>">0</span></div>
+                                                        <div class="stats-premium-value">EUR <span class="counter-value" data-target="<?= $toplam_satis ?>">0</span></div>
                                                     </div>
                                                     <span class="stats-premium-icon bg-success-subtle text-success">
                                                         <i class="bx bx-dollar-circle"></i>
@@ -294,7 +297,7 @@ $toplam_odeme = $stmt->fetchColumn();
                                                 <div class="d-flex align-items-start justify-content-between mb-3">
                                                     <div>
                                                         <p class="stats-premium-title">Toplam Ödeme</p>
-                                                        <div class="stats-premium-value">TRY <span class="counter-value" data-target="<?= $toplam_odeme ?>">0</span></div>
+                                                        <div class="stats-premium-value">EUR <span class="counter-value" data-target="<?= $toplam_odeme ?>">0</span></div>
                                                     </div>
                                                     <span class="stats-premium-icon bg-primary-subtle text-primary">
                                                         <i class="bx bx-wallet"></i>
@@ -348,6 +351,26 @@ $aylar = [];
 $satis_data = [];
 $odeme_data = [];
 
+$gunluk_sql = "
+    SELECT 
+        DATE(tarih) gun,
+        SUM(tutar) toplam
+    FROM satislar
+    WHERE durum = 0
+      AND tarih >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)
+    GROUP BY DATE(tarih)
+    ORDER BY gun ASC
+";
+$gunluk_satislar = $db->query($gunluk_sql)->fetchAll(PDO::FETCH_KEY_PAIR);
+
+$gunler = [];
+$gunluk_satis_data = [];
+for ($i = 29; $i >= 0; $i--) {
+    $gunKey = date('Y-m-d', strtotime("-$i day"));
+    $gunler[] = date('d.m', strtotime($gunKey));
+    $gunluk_satis_data[] = isset($gunluk_satislar[$gunKey]) ? (float)$gunluk_satislar[$gunKey] : 0;
+}
+
 for ($i = 1; $i <= 12; $i++) {
     $aylar[] = $aylar_tr[$i];
     $satis_data[] = isset($satislar[$i]) ? (float)$satislar[$i] : 0;
@@ -365,14 +388,14 @@ for ($i = 1; $i <= 12; $i++) {
                                                 <div class="row g-0 text-center">
                                                     <div class="col-6 col-sm-3">
                                                         <div class="p-3 border border-dashed border-start-0">
-                                                            <h5 class="mb-1"><span class="counter-value" data-target="<?= $toplam_satis ?>">0</span></h5>
+                                                            <h5 class="mb-1">EUR <span class="counter-value" data-target="<?= $toplam_satis ?>">0</span></h5>
                                                             <p class="text-muted mb-0">Satışlar</p>
                                                         </div>
                                                     </div>
                                                     <!--end col-->
                                                     <div class="col-6 col-sm-3">
                                                         <div class="p-3 border border-dashed border-start-0">
-                                                            <h5 class="mb-1">$<span class="counter-value" data-target="<?= $toplam_odeme ?>">0</span></h5>
+                                                            <h5 class="mb-1">EUR <span class="counter-value" data-target="<?= $toplam_odeme ?>">0</span></h5>
                                                             <p class="text-muted mb-0">Toplam Ödeme</p>
                                                         </div>
                                                     </div>
@@ -388,70 +411,93 @@ for ($i = 1; $i <= 12; $i++) {
 </div>
                                             </div><!-- end card body -->
                                         </div><!-- end card -->
+
+                                        <div class="card mt-3">
+                                            <div class="card-header border-0 align-items-center d-flex">
+                                                <h4 class="card-title mb-0 flex-grow-1">Günlere Göre Satışlar</h4>
+                                                <span class="badge bg-light text-dark">Son 30 Gün</span>
+                                            </div>
+                                            <div class="card-body p-0 pb-2">
+                                                <div class="w-100">
+                                                    <div id="daily_sales_charts" class="apex-charts" dir="ltr"></div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div><!-- end col -->
 
                                     <div class="col-xl-4">
                                         <!-- card -->
                                         <?php
-$sql = "
-    SELECT 
-        m.sehir AS bolge,
-        SUM(s.tutar) AS toplam_satis
-    FROM satislar s
-    INNER JOIN musteriler m ON m.id = s.musteri_id
-    GROUP BY m.sehir
-    ORDER BY toplam_satis DESC
+$kur_sql = "
+    SELECT para_birimi, alis_kur, satis_kur, kur, son_guncelleme
+    FROM doviz_kurlari
+    WHERE para_birimi IN ('TRY','EUR','USD','GBP')
+    ORDER BY FIELD(para_birimi, 'TRY', 'EUR', 'USD', 'GBP')
 ";
-
-$stmt = $db->query($sql);
-$bolge_satislari = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Grafik için JS array
-$bolgeler = [];
-$satislar = [];
-$genel_toplam = 0;
-
-foreach ($bolge_satislari as $row) {
-    $bolgeler[] = $row['bolge'];
-    $satislar[] = (float)$row['toplam_satis'];
-    $genel_toplam += $row['toplam_satis'];
-}
+$kur_satirlari = $db->query($kur_sql)->fetchAll(PDO::FETCH_ASSOC);
 ?>
                                         <div class="card card-height-100">
                                             <div class="card-header align-items-center d-flex">
-                                                <h4 class="card-title mb-0 flex-grow-1">Bölgelere Göre Satışlar</h4>
+                                                <h4 class="card-title mb-0 flex-grow-1">Doviz Kurlari</h4>
                                                 <div class="flex-shrink-0">
-                                                   
+                                                   <a href="kur.php" class="btn btn-sm btn-soft-primary">
+                                                        <i class="ri-exchange-dollar-line align-middle me-1"></i> Kur Yonetimi
+                                                    </a>
                                                 </div>
                                             </div><!-- end card header -->
 
                                             <!-- card body -->
                                             <div class="card-body">
+                                                <div class="vstack gap-3">
+                                                    <?php foreach ($kur_satirlari as $k): ?>
+                                                    <div class="border rounded-3 p-3 bg-light-subtle">
+                                                        <div class="d-flex align-items-center justify-content-between mb-2">
+                                                            <div class="d-flex align-items-center gap-2">
+                                                                <span class="avatar-xs rounded-circle bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center">
+                                                                    <i class="ri-money-dollar-circle-line"></i>
+                                                                </span>
+                                                                <strong><?= htmlspecialchars($k['para_birimi']) ?></strong>
+                                                            </div>
+                                                            <small class="text-muted"><?= htmlspecialchars((string)($k['son_guncelleme'] ?: '-')) ?></small>
+                                                        </div>
+                                                        <div class="row text-center g-2">
+                                                            <div class="col-4">
+                                                                <div class="border rounded py-2 px-1">
+                                                                    <div class="text-muted small">Alis</div>
+                                                                    <div class="fw-semibold"><?= number_format((float)$k['alis_kur'], 4, ',', '.') ?></div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-4">
+                                                                <div class="border rounded py-2 px-1">
+                                                                    <div class="text-muted small">Satis</div>
+                                                                    <div class="fw-semibold"><?= number_format((float)$k['satis_kur'], 4, ',', '.') ?></div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-4">
+                                                                <div class="border rounded py-2 px-1">
+                                                                    <div class="text-muted small">Kur</div>
+                                                                    <div class="fw-semibold"><?= number_format((float)$k['kur'], 4, ',', '.') ?></div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <?php endforeach; ?>
 
-                                                
+                                                    <?php if (empty($kur_satirlari)): ?>
+                                                    <div class="text-center text-muted py-3">Kur verisi bulunamadi</div>
+                                                    <?php endif; ?>
 
-                                              
-
-<div class="px-2 py-2 mt-1">
-    <?php foreach ($bolge_satislari as $row): 
-        $yuzde = $genel_toplam > 0 ? round(($row['toplam_satis'] / $genel_toplam) * 100) : 0;
-    ?>
-        <p class="mb-1">
-            <?= htmlspecialchars($row['bolge']) ?>
-            <span class="float-end"><?= $yuzde ?>%</span>
-        </p>
-        <div class="progress mt-2" style="height: 6px;">
-            <div 
-                class="progress-bar progress-bar-striped bg-primary"
-                role="progressbar"
-                style="width: <?= $yuzde ?>%"
-                aria-valuenow="<?= $yuzde ?>"
-                aria-valuemin="0"
-                aria-valuemax="100">
-            </div>
-        </div>
-    <?php endforeach; ?>
-</div>
+                                                    <div class="d-grid gap-2 mt-2">
+                                                        <a href="kur.php" class="btn btn-primary">
+                                                            <i class="ri-refresh-line align-middle me-1"></i> Kurlari Guncelle
+                                                        </a>
+                                                        <form action="islem.php?islem=urun_fiyat_guncelle" method="POST" onsubmit="return confirm('Urunlerin TL fiyatlari, mevcut EUR kurlarina gore guncellensin mi?');">
+                                                            <button type="submit" class="btn btn-warning w-100">
+                                                                <i class="ri-price-tag-3-line align-middle me-1"></i> Urun TL Fiyati Guncelle
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </div>
                                             </div>
                                             <!-- end card body -->
                                         </div>
@@ -473,6 +519,7 @@ $sql = "
         u.id,
         u.urun_adi,
         u.barkod,
+        u.satis_euro,
         u.satis_fiyat,
         u.stok,
         SUM(s.adet) AS toplam_satis
@@ -492,7 +539,11 @@ $en_cok_satanlar = $db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
             <tbody>
 
             <?php foreach ($en_cok_satanlar as $urun): 
-                $genel_toplam = $urun['satis_fiyat'] * $urun['toplam_satis'];
+                $birim_fiyat_eur = (float)($urun['satis_euro'] ?? 0);
+                if ($birim_fiyat_eur <= 0 && $eur_kur > 0) {
+                    $birim_fiyat_eur = (float)$urun['satis_fiyat'] / $eur_kur;
+                }
+                $genel_toplam = $birim_fiyat_eur * $urun['toplam_satis'];
             ?>
                 <tr>
                     <td>
@@ -513,7 +564,7 @@ $en_cok_satanlar = $db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
 
                     <td>
                         <h5 class="fs-14 my-1 fw-normal">
-                            <?= number_format($urun['satis_fiyat'], 2, ',', '.') ?> ₺
+                            <?= number_format($birim_fiyat_eur, 2, ',', '.') ?> €
                         </h5>
                         <span class="text-muted">Fiyat</span>
                     </td>
@@ -534,7 +585,7 @@ $en_cok_satanlar = $db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
 
                     <td>
                         <h5 class="fs-14 my-1 fw-normal">
-                            <?= number_format($genel_toplam, 2, ',', '.') ?> ₺
+                            <?= number_format($genel_toplam, 2, ',', '.') ?> €
                         </h5>
                         <span class="text-muted">Genel Toplam</span>
                     </td>
@@ -615,7 +666,7 @@ $en_cok_satis_yapanlar = $db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
 
                             <td>
                                 <h5 class="fs-14 my-1 fw-normal">
-                                    <?= number_format($user['toplam_satis_tutari'], 2, ',', '.') ?> ₺
+                                    <?= number_format($user['toplam_satis_tutari'], 2, ',', '.') ?> €
                                 </h5>
                                 <span class="text-muted">Satış Tutarı</span>
                             </td>
@@ -629,7 +680,7 @@ $en_cok_satis_yapanlar = $db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
 
                             <td>
                                 <h5 class="fs-14 my-1 fw-normal">
-                                    <?= number_format($user['toplam_odeme_tutari'], 2, ',', '.') ?> ₺
+                                    <?= number_format($user['toplam_odeme_tutari'], 2, ',', '.') ?> €
                                 </h5>
                                 <span class="text-muted">Ödeme Tutarı</span>
                             </td>
@@ -710,41 +761,6 @@ $en_cok_satis_yapanlar = $db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     <script src="assets/js/plugins.js"></script>
 
     <!-- apexcharts -->
-    <script>
-var options = {
-    chart: {
-        type: 'bar',
-        height: 269,
-        toolbar: { show: false }
-    },
-    series: [{
-        name: 'Toplam Satış',
-        data: <?= json_encode($satislar) ?>
-    }],
-    xaxis: {
-        categories: <?= json_encode($bolgeler) ?>
-    },
-    dataLabels: {
-        enabled: true,
-        formatter: function (val) {
-            return val.toLocaleString('tr-TR') + ' ₺';
-        }
-    },
-    tooltip: {
-        y: {
-            formatter: function (val) {
-                return val.toLocaleString('tr-TR') + ' ₺';
-            }
-        }
-    }
-};
-
-var chart = new ApexCharts(
-    document.querySelector("#sales-by-locations"),
-    options
-);
-chart.render();
-</script>
     <script src="assets/libs/apexcharts/apexcharts.min.js"></script>
 <script>
 var options = {
@@ -777,7 +793,7 @@ var options = {
     tooltip: {
         y: {
             formatter: function (val) {
-                return val.toLocaleString('tr-TR') + ' ₺';
+                return val.toLocaleString('tr-TR') + ' €';
             }
         }
     },
@@ -791,6 +807,48 @@ var chart = new ApexCharts(
     options
 );
 chart.render();
+
+var dailySalesOptions = {
+    chart: {
+        height: 320,
+        type: 'bar',
+        toolbar: { show: false }
+    },
+    series: [{
+        name: 'Satışlar',
+        data: <?= json_encode($gunluk_satis_data) ?>
+    }],
+    xaxis: {
+        categories: <?= json_encode($gunler) ?>,
+        labels: {
+            rotate: -45,
+            hideOverlappingLabels: true
+        }
+    },
+    colors: ['#0ab39c'],
+    plotOptions: {
+        bar: {
+            borderRadius: 4,
+            columnWidth: '55%'
+        }
+    },
+    dataLabels: {
+        enabled: false
+    },
+    tooltip: {
+        y: {
+            formatter: function (val) {
+                return val.toLocaleString('tr-TR') + ' €';
+            }
+        }
+    }
+};
+
+var dailySalesChart = new ApexCharts(
+    document.querySelector("#daily_sales_charts"),
+    dailySalesOptions
+);
+dailySalesChart.render();
 </script>
 
     <!-- Vector map-->

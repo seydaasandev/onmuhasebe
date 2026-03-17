@@ -19,6 +19,16 @@ if (strtolower($role) === 'user') {
     header("Location: 403.php");
     exit;
 }
+
+$kurMap = ['TRY' => 1.0, 'EUR' => 1.0, 'USD' => 1.0, 'GBP' => 1.0];
+$kurRows = $db->query("SELECT para_birimi, kur FROM doviz_kurlari WHERE para_birimi IN ('TRY','EUR','USD','GBP')")->fetchAll(PDO::FETCH_ASSOC);
+foreach ($kurRows as $row) {
+    $pb = strtoupper((string)$row['para_birimi']);
+    $kur = (float)$row['kur'];
+    if (isset($kurMap[$pb]) && $kur > 0) {
+        $kurMap[$pb] = $kur;
+    }
+}
 ?>
 
 
@@ -34,6 +44,7 @@ if (strtolower($role) === 'user') {
     <meta content="Nextario" name="author" />
     <!-- App favicon -->
     <link rel="shortcut icon" href="assets/images/favicon.ico">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
     <!--datatable css-->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" />
@@ -116,27 +127,59 @@ if (strtolower($role) === 'user') {
             </div>
         </div>
 
-        <!-- Marka -->
+        <!-- Ana Kategori / Marka / Model / Cins / Kategori (Kategori Ağacı) -->
+        <div class="col-12"><h6 class="text-muted border-bottom pb-1 mb-2"><i class="ri-node-tree me-1"></i> Kategori Ağacı</h6></div>
+
         <div class="col-6">
             <div class="mb-3">
-                <label for="marka" class="form-label">Marka</label>
-                <input type="text" name="marka" class="form-control" placeholder="Ürün markası" id="marka">
-            </div>
-        </div>
-        <div class="col-6">
-            <div class="mb-3">
-                <label for="cins" class="form-label">Cins</label>
-                <input type="text" name="cins" class="form-control" placeholder="Ürün cinsi" id="cins">
+                <label class="form-label">Ana Kategori</label>
+                <select name="ana_kategori_id" id="nu_ana_kat" class="form-select select2-agac">
+                    <option value="">Seçiniz</option>
+                    <?php
+                    $akListNu = $db->query("SELECT id,ad FROM ana_kategoriler ORDER BY ad")->fetchAll(PDO::FETCH_ASSOC);
+                    foreach($akListNu as $ak): ?>
+                    <option value="<?= $ak['id'] ?>"><?= htmlspecialchars($ak['ad']) ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
         </div>
 
-        <!-- Kategori -->
         <div class="col-6">
             <div class="mb-3">
-                <label for="kategori" class="form-label">Kategori</label>
-                <input type="text" name="kategori" class="form-control" placeholder="Ürün kategorisi" id="kategori">
+                <label class="form-label">Marka</label>
+                <select name="marka_id" id="nu_marka" class="form-select select2-agac">
+                    <option value="">Önce Ana Kategori Seçin</option>
+                </select>
             </div>
         </div>
+
+        <div class="col-6">
+            <div class="mb-3">
+                <label class="form-label">Model</label>
+                <select name="model_id" id="nu_model" class="form-select select2-agac">
+                    <option value="">Önce Marka Seçin</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="col-6">
+            <div class="mb-3">
+                <label class="form-label">Cins</label>
+                <select name="cins_id" id="nu_cins" class="form-select select2-agac">
+                    <option value="">Önce Model Seçin</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="col-6">
+            <div class="mb-3">
+                <label class="form-label">Kategori</label>
+                <select name="kategori_id" id="nu_kategori" class="form-select select2-agac">
+                    <option value="">Önce Cins Seçin</option>
+                </select>
+            </div>
+        </div>
+        <div class="col-12"><hr></div>
 
         <!-- Raf Bölümü -->
         <div class="col-6">
@@ -167,8 +210,29 @@ if (strtolower($role) === 'user') {
         <!-- Alış Fiyatı -->
         <div class="col-6">
             <div class="mb-3">
-                <label for="satis_fiyat" class="form-label">Satış Fiyatı TL</label>
+                <label for="satis_euro" class="form-label">Satış Fiyatı EURO (Ana)</label>
+                <input type="text" name="satis_euro" class="form-control" placeholder="0.00" id="satis_euro">
+            </div>
+        </div>
+
+        <div class="col-6">
+            <div class="mb-3">
+                <label for="satis_fiyat" class="form-label">Satış Fiyatı TL (Kurdan)</label>
                 <input type="text" name="satis_fiyat" class="form-control" placeholder="0.00" id="satis_fiyat">
+            </div>
+        </div>
+
+        <div class="col-6">
+            <div class="mb-3">
+                <label for="satis_dolar" class="form-label">Satış Fiyatı DOLAR</label>
+                <input type="text" name="satis_dolar" class="form-control" placeholder="0.00" id="satis_dolar">
+            </div>
+        </div>
+
+        <div class="col-6">
+            <div class="mb-3">
+                <label for="satis_sterlin" class="form-label">Satış Fiyatı STERLIN</label>
+                <input type="text" name="satis_sterlin" class="form-control" placeholder="0.00" id="satis_sterlin">
             </div>
         </div>
 
@@ -318,37 +382,79 @@ document.getElementById("barkodKontrolBtn").addEventListener("click", function (
 });
 
 // Fiyat formatlama fonksiyonu
+const FX_RATES = <?= json_encode($kurMap, JSON_UNESCAPED_UNICODE) ?>;
+const PRICE_FIELDS = {
+    satis_fiyat: 'TRY',
+    satis_euro: 'EUR',
+    satis_dolar: 'USD',
+    satis_sterlin: 'GBP'
+};
+let isSyncingPrices = false;
+
 function formatNumber(num) {
-    if (!num) return '';
-    return parseFloat(num).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (num === '' || num === null || typeof num === 'undefined') return '';
+    const n = parseFloat(num);
+    if (isNaN(n)) return '';
+    return n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function unformatNumber(str) {
     if (!str) return '';
-    return str.replace(/\./g, '').replace(',', '.');
+    return String(str).replace(/\./g, '').replace(',', '.');
 }
 
-// Sayfa yüklenince mevcut değerleri formatla (yeni ürün için boş)
-document.addEventListener('DOMContentLoaded', function() {
-    // Yeni ürün için boş, gerek yok
-});
+function parseInputValue(el) {
+    const v = parseFloat(unformatNumber(el.value));
+    return isNaN(v) ? null : v;
+}
 
-// Input event'leri
+function syncPricesFrom(sourceName) {
+    if (isSyncingPrices) return;
+    const sourceEl = document.querySelector(`input[name="${sourceName}"]`);
+    if (!sourceEl) return;
+
+    const sourceCurrency = PRICE_FIELDS[sourceName];
+    const sourceRate = parseFloat(FX_RATES[sourceCurrency] || 0);
+    const sourceValue = parseInputValue(sourceEl);
+    if (!sourceRate || sourceRate <= 0 || sourceValue === null) return;
+
+    const tlBase = sourceValue * sourceRate;
+    isSyncingPrices = true;
+
+    Object.keys(PRICE_FIELDS).forEach((fieldName) => {
+        if (fieldName === sourceName) return;
+        const targetEl = document.querySelector(`input[name="${fieldName}"]`);
+        if (!targetEl) return;
+        const targetRate = parseFloat(FX_RATES[PRICE_FIELDS[fieldName]] || 0);
+        if (!targetRate || targetRate <= 0) return;
+        const targetVal = tlBase / targetRate;
+        targetEl.value = formatNumber(targetVal);
+    });
+
+    isSyncingPrices = false;
+}
+
 document.addEventListener('focusin', function(e) {
-    if (e.target.matches('input[name="satis_fiyat"]')) {
+    if (e.target.matches('input[name="satis_fiyat"], input[name="satis_euro"], input[name="satis_dolar"], input[name="satis_sterlin"]')) {
         e.target.value = unformatNumber(e.target.value);
     }
 });
 
-document.addEventListener('focusout', function(e) {
-    if (e.target.matches('input[name="satis_fiyat"]')) {
-        e.target.value = formatNumber(e.target.value);
+document.addEventListener('input', function(e) {
+    if (e.target.matches('input[name="satis_fiyat"], input[name="satis_euro"], input[name="satis_dolar"], input[name="satis_sterlin"]')) {
+        syncPricesFrom(e.target.name);
     }
 });
 
-// Form submit'te unformat et
+document.addEventListener('focusout', function(e) {
+    if (e.target.matches('input[name="satis_fiyat"], input[name="satis_euro"], input[name="satis_dolar"], input[name="satis_sterlin"]')) {
+        const parsed = parseInputValue(e.target);
+        e.target.value = parsed === null ? '' : formatNumber(parsed);
+    }
+});
+
 document.querySelector('form').addEventListener('submit', function() {
-    const inputs = document.querySelectorAll('input[name="satis_fiyat"]');
+    const inputs = document.querySelectorAll('input[name="satis_fiyat"], input[name="satis_euro"], input[name="satis_dolar"], input[name="satis_sterlin"]');
     inputs.forEach(input => {
         input.value = unformatNumber(input.value);
     });
@@ -388,6 +494,51 @@ Swal.fire({
     <script src="assets/js/plugins.js"></script>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+$(document).ready(function() {
+    $('.select2-agac').select2({ width: '100%', language: { noResults: function() { return 'Sonuç bulunamadı'; } } });
+
+    function loadSel(sel, url, ph) {
+        $(sel).html('<option value="">Yükleniyor…</option>').prop('disabled', true);
+        $.getJSON(url, function(data) {
+            var h = '<option value="">' + ph + '</option>';
+            $.each(data, function(i, r) { h += '<option value="' + r.id + '">' + r.ad + '</option>'; });
+            $(sel).html(h).prop('disabled', false).trigger('change.select2');
+        });
+    }
+    function resetSel(sel, ph) {
+        $(sel).html('<option value="">' + ph + '</option>').prop('disabled', false).trigger('change.select2');
+    }
+
+    $('#nu_ana_kat').on('change', function() {
+        var id = $(this).val();
+        resetSel('#nu_model', 'Önce Marka Seçin');
+        resetSel('#nu_cins', 'Önce Model Seçin');
+        resetSel('#nu_kategori', 'Önce Cins Seçin');
+        if (id) loadSel('#nu_marka', 'ajax/kategori_agaci.php?tip=markalar&ust_id=' + id, 'Marka Seçin');
+        else resetSel('#nu_marka', 'Önce Ana Kategori Seçin');
+    });
+    $('#nu_marka').on('change', function() {
+        var id = $(this).val();
+        resetSel('#nu_cins', 'Önce Model Seçin');
+        resetSel('#nu_kategori', 'Önce Cins Seçin');
+        if (id) loadSel('#nu_model', 'ajax/kategori_agaci.php?tip=modeller&ust_id=' + id, 'Model Seçin');
+        else resetSel('#nu_model', 'Önce Marka Seçin');
+    });
+    $('#nu_model').on('change', function() {
+        var id = $(this).val();
+        resetSel('#nu_kategori', 'Önce Cins Seçin');
+        if (id) loadSel('#nu_cins', 'ajax/kategori_agaci.php?tip=cinsler&ust_id=' + id, 'Cins Seçin');
+        else resetSel('#nu_cins', 'Önce Model Seçin');
+    });
+    $('#nu_cins').on('change', function() {
+        var id = $(this).val();
+        if (id) loadSel('#nu_kategori', 'ajax/kategori_agaci.php?tip=kategoriler&ust_id=' + id, 'Kategori Seçin');
+        else resetSel('#nu_kategori', 'Önce Cins Seçin');
+    });
+});
+</script>
 
     <!--datatable js-->
 

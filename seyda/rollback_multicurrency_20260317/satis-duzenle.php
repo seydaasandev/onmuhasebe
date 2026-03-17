@@ -52,7 +52,7 @@ $genel_toplam = $ara_toplam + $kdv_tutari;
 
 // Dropdown verileri
 $musteriler = $db->query("SELECT id, musteri_adi FROM musteriler WHERE durum = 0 ORDER BY musteri_adi ASC")->fetchAll(PDO::FETCH_ASSOC);
-$urunler = $db->query("SELECT id, urun_adi, satis_euro, kdv FROM urunler WHERE durum = 0 OR id = {$satis['urun_id']} ORDER BY urun_adi ASC")->fetchAll(PDO::FETCH_ASSOC);
+$urunler = $db->query("SELECT id, urun_adi, satis_fiyat, kdv FROM urunler WHERE durum = 0 OR id = {$satis['urun_id']} ORDER BY urun_adi ASC")->fetchAll(PDO::FETCH_ASSOC);
 $users = $db->query("SELECT id, namesurname FROM users WHERE durum = 0 ORDER BY namesurname ASC")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
@@ -142,7 +142,7 @@ $users = $db->query("SELECT id, namesurname FROM users WHERE durum = 0 ORDER BY 
                                                     <select name="urun_id" id="urun_id" class="form-select" required>
                                                         <option value="">Ürün seçiniz</option>
                                                         <?php foreach ($urunler as $u): ?>
-                                                            <option value="<?= $u['id'] ?>" data-fiyat="<?= $u['satis_euro'] ?>" data-kdv="<?= $u['kdv'] ?>" <?= $satis['urun_id'] == $u['id'] ? 'selected' : '' ?>>
+                                                            <option value="<?= $u['id'] ?>" data-fiyat="<?= $u['satis_fiyat'] ?>" data-kdv="<?= $u['kdv'] ?>" <?= $satis['urun_id'] == $u['id'] ? 'selected' : '' ?>>
                                                                 <?= htmlspecialchars($u['urun_adi']) ?>
                                                             </option>
                                                         <?php endforeach; ?>
@@ -178,7 +178,7 @@ $users = $db->query("SELECT id, namesurname FROM users WHERE durum = 0 ORDER BY 
                                             <div class="col-6">
                                                 <div class="mb-3">
                                                     <label class="form-label">Ara Toplam</label>
-                                                    <input type="text" id="ara_toplam" class="form-control" value="<?= number_format($ara_toplam, 2, ',', '.') ?> €" readonly>
+                                                    <input type="text" id="ara_toplam" class="form-control" value="<?= number_format($ara_toplam, 2, ',', '.') ?> ₺" readonly>
                                                 </div>
                                             </div>
 
@@ -186,7 +186,7 @@ $users = $db->query("SELECT id, namesurname FROM users WHERE durum = 0 ORDER BY 
                                             <div class="col-6">
                                                 <div class="mb-3">
                                                     <label class="form-label">KDV Tutarı</label>
-                                                    <input type="text" id="kdv_tutari" class="form-control" value="<?= number_format($kdv_tutari, 2, ',', '.') ?> €" readonly>
+                                                    <input type="text" id="kdv_tutari" class="form-control" value="<?= number_format($kdv_tutari, 2, ',', '.') ?> ₺" readonly>
                                                 </div>
                                             </div>
 
@@ -194,7 +194,7 @@ $users = $db->query("SELECT id, namesurname FROM users WHERE durum = 0 ORDER BY 
                                             <div class="col-6">
                                                 <div class="mb-3">
                                                     <label class="form-label">Genel Toplam</label>
-                                                    <input type="text" id="genel_toplam" class="form-control" value="<?= number_format($genel_toplam, 2, ',', '.') ?> €" readonly>
+                                                    <input type="text" id="genel_toplam" class="form-control" value="<?= number_format($genel_toplam, 2, ',', '.') ?> ₺" readonly>
                                                 </div>
                                             </div>
 
@@ -322,9 +322,9 @@ $users = $db->query("SELECT id, namesurname FROM users WHERE durum = 0 ORDER BY 
             var kdvTutari = (araToplam * kdvOrani) / 100;
             var genelToplam = araToplam + kdvTutari;
 
-            $('#ara_toplam').val(araToplam.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' €');
-            $('#kdv_tutari').val(kdvTutari.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' €');
-            $('#genel_toplam').val(genelToplam.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' €');
+            $('#ara_toplam').val(araToplam.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ₺');
+            $('#kdv_tutari').val(kdvTutari.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ₺');
+            $('#genel_toplam').val(genelToplam.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ₺');
         }
     });
     </script>

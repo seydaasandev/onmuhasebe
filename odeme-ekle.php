@@ -117,7 +117,7 @@ $urunler = $db->query("SELECT id, urun_adi FROM urunler ORDER BY id ASC")->fetch
 
     <!-- TUTAR -->
     <div class="mb-3">
-        <label class="form-label">Tutar</label>
+        <label class="form-label">Tutar (EUR)</label>
         <input type="number" step="0.01" name="tutar" class="form-control" required>
     </div>
 

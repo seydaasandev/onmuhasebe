@@ -173,10 +173,10 @@ $musteriler = $db->query("SELECT id, musteri_adi FROM musteriler WHERE durum = 0
                 <li class="list-group-item text-muted text-center">Sepet boş</li>
               </ul>
               <ul class="list-group mb-3">
-                <li class="list-group-item d-flex justify-content-between"><span>Ara Toplam</span><strong id="ara_toplam">0 €</strong></li>
-                <li class="list-group-item d-flex justify-content-between"><span>İndirim</span><strong id="indirim_toplam">0 €</strong></li>
-                <li class="list-group-item d-flex justify-content-between"><span>KDV</span><strong id="kdv_toplam">0 €</strong></li>
-                <li class="list-group-item d-flex justify-content-between bg-light"><span>Genel Toplam</span><strong id="genel_toplam">0 €</strong></li>
+                <li class="list-group-item d-flex justify-content-between"><span>Ara Toplam</span><strong id="ara_toplam">0 ₺</strong></li>
+                <li class="list-group-item d-flex justify-content-between"><span>İndirim</span><strong id="indirim_toplam">0 ₺</strong></li>
+                <li class="list-group-item d-flex justify-content-between"><span>KDV</span><strong id="kdv_toplam">0 ₺</strong></li>
+                <li class="list-group-item d-flex justify-content-between bg-light"><span>Genel Toplam</span><strong id="genel_toplam">0 ₺</strong></li>
               </ul>
 
               <!-- Gizli alanlar -->

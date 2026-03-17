@@ -18,6 +18,35 @@ $sql = $db->prepare("SELECT * FROM urunler WHERE durum = 0 ORDER BY id DESC");
 $sql->execute();
 $urunler = $sql->fetchAll(PDO::FETCH_ASSOC);
 
+function get_live_rates(PDO $db): array {
+    $rates = ['TRY' => 1.0, 'EUR' => 1.0, 'USD' => 1.0, 'GBP' => 1.0];
+    $q = $db->query("SELECT para_birimi, kur FROM doviz_kurlari WHERE para_birimi IN ('TRY','EUR','USD','GBP')");
+    foreach ($q as $r) {
+        $pb = strtoupper((string)$r['para_birimi']);
+        $kur = (float)$r['kur'];
+        if ($kur > 0 && isset($rates[$pb])) {
+            $rates[$pb] = $kur;
+        }
+    }
+    $rates['TRY'] = 1.0;
+    return $rates;
+}
+
+function format_currency_lines(float $eur, array $rates): string {
+    $eur = (float)$eur;
+    $tl = $rates['EUR'] > 0 ? $eur * $rates['EUR'] : 0;
+    $usd = $rates['USD'] > 0 ? $tl / $rates['USD'] : 0;
+    $gbp = $rates['GBP'] > 0 ? $tl / $rates['GBP'] : 0;
+
+    return 'EUR ' . number_format($eur, 2, ',', '.')
+        . '<br><small>TL ' . number_format($tl, 2, ',', '.')
+        . ' | USD ' . number_format($usd, 2, ',', '.')
+        . ' | GBP ' . number_format($gbp, 2, ',', '.')
+        . '</small>';
+}
+
+$rates = get_live_rates($db);
+
 $genel_kdvsiz_toplam = 0;
 $genel_kdv_toplam    = 0;
 $genel_kdvli_toplam  = 0;
@@ -130,7 +159,11 @@ $genel_kdvli_toplam  = 0;
 
         <?php foreach ($urunler as $urun): ?>
         <?php
-    $kdvsiz = $urun['satis_fiyat'] * $urun['stok'];
+    $birim_fiyat_eur = (float)($urun['satis_euro'] ?? 0);
+    if ($birim_fiyat_eur <= 0 && $rates['EUR'] > 0) {
+        $birim_fiyat_eur = (float)($urun['satis_fiyat'] ?? 0) / $rates['EUR'];
+    }
+    $kdvsiz = $birim_fiyat_eur * $urun['stok'];
     $kdv_tutari = $kdvsiz * $urun['kdv'] / 100;
     $kdvli = $kdvsiz + $kdv_tutari;
     // 🔥 GENEL TOPLAMLAR
@@ -146,10 +179,10 @@ $genel_kdvli_toplam  = 0;
                 <td><?= htmlspecialchars($urun['marka']) ?></td>
                 <td><?= htmlspecialchars($urun['cins']) ?></td>
                 <td>%<?= $urun['kdv'] ?></td>
-                <td><?= number_format($urun['satis_fiyat'], 2, ',', '.') ?> ₺</td>
-                <td><?= number_format($kdvsiz, 2, ',', '.') ?> ₺</td>
-                <td><?= number_format($kdvli, 2, ',', '.') ?> ₺</td>
-                <td><?= number_format($kdv_tutari, 2, ',', '.') ?> ₺</td>
+                <td><?= format_currency_lines($birim_fiyat_eur, $rates) ?></td>
+                <td><?= format_currency_lines($kdvsiz, $rates) ?></td>
+                <td><?= format_currency_lines($kdvli, $rates) ?></td>
+                <td><?= format_currency_lines($kdv_tutari, $rates) ?></td>
 
                 <td>
                     <a href="urun-duzenle.php?id=<?= $urun['id'] ?>" class="btn btn-primary btn-sm">
@@ -169,9 +202,9 @@ $genel_kdvli_toplam  = 0;
     <tfoot>
     <tr style="font-weight:bold; background:#f8f9fa;">
         <td colspan="8" style="text-align:right;">GENEL TOPLAM</td>
-        <td><?= number_format($genel_kdvsiz_toplam, 2, ',', '.') ?> ₺</td>
-        <td><?= number_format($genel_kdvli_toplam, 2, ',', '.') ?> ₺</td>
-        <td><?= number_format($genel_kdv_toplam, 2, ',', '.') ?> ₺</td>
+        <td><?= format_currency_lines($genel_kdvsiz_toplam, $rates) ?></td>
+        <td><?= format_currency_lines($genel_kdvli_toplam, $rates) ?></td>
+        <td><?= format_currency_lines($genel_kdv_toplam, $rates) ?></td>
         <td></td>
     </tr>
 </tfoot>

@@ -30,6 +30,35 @@ $bitis_dt     = $bitis . ' 23:59:59';
 
 $ekstre = [];
 
+function get_live_rates(PDO $db): array {
+    $rates = ['TRY' => 1.0, 'EUR' => 1.0, 'USD' => 1.0, 'GBP' => 1.0];
+    $q = $db->query("SELECT para_birimi, kur FROM doviz_kurlari WHERE para_birimi IN ('TRY','EUR','USD','GBP')");
+    foreach ($q as $r) {
+        $pb = strtoupper((string)$r['para_birimi']);
+        $kur = (float)$r['kur'];
+        if ($kur > 0 && isset($rates[$pb])) {
+            $rates[$pb] = $kur;
+        }
+    }
+    $rates['TRY'] = 1.0;
+    return $rates;
+}
+
+function format_currency_lines(float $eur, array $rates): string {
+    $eur = (float)$eur;
+    $tl = $rates['EUR'] > 0 ? $eur * $rates['EUR'] : 0;
+    $usd = $rates['USD'] > 0 ? $tl / $rates['USD'] : 0;
+    $gbp = $rates['GBP'] > 0 ? $tl / $rates['GBP'] : 0;
+
+    return 'EUR ' . number_format($eur, 2, ',', '.')
+        . '<br><small>TL ' . number_format($tl, 2, ',', '.')
+        . ' | USD ' . number_format($usd, 2, ',', '.')
+        . ' | GBP ' . number_format($gbp, 2, ',', '.')
+        . '</small>';
+}
+
+$rates = get_live_rates($db);
+
 /* ==========================
    SATIŞLAR (BORÇ)
 ========================== */
@@ -39,6 +68,8 @@ $sql = "
 SELECT 
     s.id,
     s.tutar,
+    s.kdv_toplami,
+    s.genel_tutar,
     s.indirim_toplami,
     s.fatura_no,
     s.tarih,
@@ -57,13 +88,17 @@ $stmt = $db->prepare($sql);
 $stmt->execute([$musteri_id, $baslangic_dt, $bitis_dt]);
 
     while ($s = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $borcEur = (float)($s['genel_tutar'] ?? 0);
+        if ($borcEur <= 0) {
+            $borcEur = ((float)$s['tutar'] + (float)($s['kdv_toplami'] ?? 0)) - (float)($s['indirim_toplami'] ?? 0);
+        }
         $ekstre[] = [
             'id'          => $s['id'],
             'tur'         => 'Satış',
             'islem_no'    => $s['fatura_no'],
             'musteri_adi' => $s['musteri_adi'],
             'aciklama'    => 'Satış faturası',
-            'borc'        => $s['tutar'],
+            'borc'        => $borcEur,
             'alacak'      => null,
             'kullanici'   => $s['kullanici'],
             'tarih'       => $s['tarih']
@@ -129,13 +164,13 @@ $sql = "
 ";
 $stmt = $db->prepare($sql);
 $stmt->execute([$musteri_id, $baslangic_dt, $bitis_dt]);
-$toplam_odeme = $stmt->fetchColumn();
+$toplam_odeme = (float)$stmt->fetchColumn();
 
 /* ==========================
    TOPLAM SATIŞ
 ========================== */
 $sql = "
-    SELECT COALESCE(SUM(tutar),0)
+    SELECT COALESCE(SUM(COALESCE(genel_tutar, (tutar + COALESCE(kdv_toplami,0) - COALESCE(indirim_toplami,0)))),0)
     FROM satislar
     WHERE musteri_id = ?
       AND tarih BETWEEN ? AND ?
@@ -143,7 +178,7 @@ $sql = "
 ";
 $stmt = $db->prepare($sql);
 $stmt->execute([$musteri_id, $baslangic_dt, $bitis_dt]);
-$toplam_satis = $stmt->fetchColumn();
+$toplam_satis = (float)$stmt->fetchColumn();
 ?>
 
 
@@ -266,11 +301,11 @@ $toplam_satis = $stmt->fetchColumn();
     <td><?= htmlspecialchars($e['aciklama']) ?></td>
 
     <td class="text-end text-danger">
-        <?= $e['borc'] ? number_format($e['borc'],2,',','.') . ' ₺' : '—' ?>
+        <?= $e['borc'] !== null ? format_currency_lines((float)$e['borc'], $rates) : '—' ?>
     </td>
 
     <td class="text-end text-success">
-        <?= $e['alacak'] ? number_format($e['alacak'],2,',','.') . ' ₺' : '—' ?>
+        <?= $e['alacak'] !== null ? format_currency_lines((float)$e['alacak'], $rates) : '—' ?>
     </td>
 
     <td><?= htmlspecialchars($e['kullanici']) ?></td>
@@ -288,12 +323,12 @@ $toplam_satis = $stmt->fetchColumn();
     tarihleri arasında:
     <br>
     <b>Toplam Satış:</b> 
-    <?= number_format($toplam_satis, 2, ',', '.') ?> ₺
+    <?= format_currency_lines((float)$toplam_satis, $rates) ?>
     <br>
     <b>Toplam Ödeme:</b> 
-    <?= number_format($toplam_odeme, 2, ',', '.') ?> ₺<br>
+    <?= format_currency_lines((float)$toplam_odeme, $rates) ?><br>
     <b>Dönem Borçu:</b> 
-    <?= number_format($toplam_satis - $toplam_odeme, 2, ',', '.') ?> ₺
+    <?= format_currency_lines((float)($toplam_satis - $toplam_odeme), $rates) ?>
 </div>
 
 

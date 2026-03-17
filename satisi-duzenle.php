@@ -34,7 +34,8 @@ $stmt = $db->prepare("
            u.urun_adi,
            u.kdv,
            u.stok,
-           u.satis_fiyat as urun_fiyat,
+           u.satis_euro as urun_fiyat,
+           u.satis_fiyat as urun_fiyat_tl,
            u.barkod
     FROM satislar s
     INNER JOIN musteriler m ON m.id = s.musteri_id
@@ -45,6 +46,11 @@ $stmt->execute([$satis_id]);
 $satis = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$satis) die("Satış bulunamadı");
+
+$eurRate = (float)($db->query("SELECT kur FROM doviz_kurlari WHERE para_birimi='EUR' LIMIT 1")->fetchColumn() ?: 0);
+if ((float)$satis['urun_fiyat'] <= 0 && $eurRate > 0) {
+    $satis['urun_fiyat'] = (float)$satis['urun_fiyat_tl'] / $eurRate;
+}
 
 /* MÜŞTERİLER */
 $musteriler = $db->query("
@@ -231,19 +237,19 @@ $musteriler = $db->query("
               <ul class="list-group">
     <li class="list-group-item d-flex justify-content-between">
         <span>Ara Toplam</span>
-        <strong id="ara_toplam">0 ₺</strong>
+        <strong id="ara_toplam">0 €</strong>
     </li>
     <li class="list-group-item d-flex justify-content-between">
         <span>İndirim</span>
-        <strong id="indirim_toplam">0 ₺</strong>
+        <strong id="indirim_toplam">0 €</strong>
     </li>
     <li class="list-group-item d-flex justify-content-between">
         <span>KDV</span>
-        <strong id="kdv_toplam">0 ₺</strong>
+        <strong id="kdv_toplam">0 €</strong>
     </li>
     <li class="list-group-item d-flex justify-content-between bg-light">
         <span>Genel Toplam</span>
-        <strong id="genel_toplam_li">0 ₺</strong>
+        <strong id="genel_toplam_li">0 €</strong>
     </li>
 </ul>
 
@@ -372,10 +378,10 @@ $(function () {
         var genelToplam = (araToplam + kdvTutar) - indirimToplam;
 
         // 🔹 Görsel alanlar
-        $('#ara_toplam').text(araToplam.toFixed(2) + ' ₺');
-        $('#kdv_toplam').text(kdvTutar.toFixed(2) + ' ₺');
-        $('#indirim_toplam').text(indirimToplam.toFixed(2) + ' ₺');
-        $('#genel_toplam_li').text(genelToplam.toFixed(2) + ' ₺');
+        $('#ara_toplam').text(araToplam.toFixed(2) + ' €');
+        $('#kdv_toplam').text(kdvTutar.toFixed(2) + ' €');
+        $('#indirim_toplam').text(indirimToplam.toFixed(2) + ' €');
+        $('#genel_toplam_li').text(genelToplam.toFixed(2) + ' €');
 
         // 🔹 Form inputları (POST GİDENLER)
         $('#tutar').val((araToplam + kdvTutar).toFixed(2));

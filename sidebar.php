@@ -187,16 +187,21 @@
                                 <i class="ri-honour-line"></i> <span data-key="t-widgets">Pazarlamacı Ekstresi</span>
                             </a>
                         </li> -->
-                        <li class="nav-item">
+                       <!-- <li class="nav-item">
                             <a class="nav-link menu-link" href="bolgeye-gore-ekstre.php">
                                 <i class="ri-honour-line"></i> <span data-key="t-widgets">Bölgeye Göre Ekstre</span>
                             </a>
-                        </li>
+                        </li>-->
                         
                          <li class="menu-title"><i class="ri-more-fill"></i> <span data-key="t-pages">Güncellemeler</span></li>
                          <li class="nav-item">
                             <a class="nav-link menu-link" href="kur.php">
-                                <i class="ri-honour-line"></i> <span data-key="t-widgets">Ürün Fiyatları Güncelle</span>
+                                <i class="ri-honour-line"></i> <span data-key="t-widgets">Döviz Kurları</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link menu-link" href="kategori-agaci.php">
+                                <i class="ri-node-tree"></i> <span data-key="t-widgets">Kategori Ağacı</span>
                             </a>
                         </li>
                           <!-- <li class="nav-item">

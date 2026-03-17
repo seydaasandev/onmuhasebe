@@ -40,6 +40,35 @@ $bitis      = $_POST['bitis'];     // YYYY-MM-DD
 $baslangic_dt = $baslangic . ' 00:00:00';
 $bitis_dt     = $bitis . ' 23:59:59';
 
+function get_live_rates(PDO $db): array {
+    $rates = ['TRY' => 1.0, 'EUR' => 1.0, 'USD' => 1.0, 'GBP' => 1.0];
+    $q = $db->query("SELECT para_birimi, kur FROM doviz_kurlari WHERE para_birimi IN ('TRY','EUR','USD','GBP')");
+    foreach ($q as $r) {
+        $pb = strtoupper((string)$r['para_birimi']);
+        $kur = (float)$r['kur'];
+        if ($kur > 0 && isset($rates[$pb])) {
+            $rates[$pb] = $kur;
+        }
+    }
+    $rates['TRY'] = 1.0;
+    return $rates;
+}
+
+function format_currency_lines(float $eur, array $rates): string {
+    $eur = (float)$eur;
+    $tl = $rates['EUR'] > 0 ? $eur * $rates['EUR'] : 0;
+    $usd = $rates['USD'] > 0 ? $tl / $rates['USD'] : 0;
+    $gbp = $rates['GBP'] > 0 ? $tl / $rates['GBP'] : 0;
+
+    return 'EUR ' . number_format($eur, 2, ',', '.')
+        . '<br><small>TL ' . number_format($tl, 2, ',', '.')
+        . ' | USD ' . number_format($usd, 2, ',', '.')
+        . ' | GBP ' . number_format($gbp, 2, ',', '.')
+        . '</small>';
+}
+
+$rates = get_live_rates($db);
+
 /* ==========================
    TOPLAM ÖDEME
 ========================== */
@@ -58,7 +87,7 @@ $toplam_odeme = (float)$stmt->fetchColumn();
    TOPLAM SATIŞ
 ========================== */
 $sql = "
-    SELECT COALESCE(SUM(tutar),0)
+    SELECT COALESCE(SUM(COALESCE(genel_tutar, (tutar + COALESCE(kdv_toplami,0) - COALESCE(indirim_toplami,0)))),0)
     FROM satislar
     WHERE musteri_id = ?
       AND tarih BETWEEN ? AND ?
@@ -88,6 +117,9 @@ $sql = "
 SELECT 
     s.id,
     s.tutar,
+    s.kdv_toplami,
+    s.indirim_toplami,
+    s.genel_tutar,
     s.fatura_no,
     s.tarih,
     m.musteri_adi,
@@ -111,7 +143,12 @@ $toplanan = 0;
 
 while ($s = $stmt->fetch(PDO::FETCH_ASSOC)) {
 
-    $toplanan += (float)$s['tutar'];
+    $faturaBorc = (float)($s['genel_tutar'] ?? 0);
+    if ($faturaBorc <= 0) {
+        $faturaBorc = ((float)$s['tutar'] + (float)($s['kdv_toplami'] ?? 0)) - (float)($s['indirim_toplami'] ?? 0);
+    }
+
+    $toplanan += $faturaBorc;
 
     $ekstre[] = [
         'id'          => $s['id'],
@@ -119,7 +156,7 @@ while ($s = $stmt->fetch(PDO::FETCH_ASSOC)) {
         'islem_no'    => $s['fatura_no'],
         'musteri_adi' => $s['musteri_adi'],
         'aciklama'    => 'Bakiyeye dahil fatura',
-        'borc'        => $s['tutar'],
+        'borc'        => $faturaBorc,
         'alacak'      => null,
         'kullanici'   => $s['kullanici'],
         'tarih'       => $s['tarih']
@@ -266,11 +303,11 @@ usort($ekstre, function ($a, $b) {
     <td><?= htmlspecialchars($e['aciklama']) ?></td>
 
     <td class="text-end text-danger">
-        <?= $e['borc'] ? number_format($e['borc'],2,',','.') . ' ₺' : '—' ?>
+        <?= $e['borc'] !== null ? format_currency_lines((float)$e['borc'], $rates) : '—' ?>
     </td>
 
     <td class="text-end text-success">
-        <?= $e['alacak'] ? number_format($e['alacak'],2,',','.') . ' ₺' : '—' ?>
+        <?= $e['alacak'] !== null ? format_currency_lines((float)$e['alacak'], $rates) : '—' ?>
     </td>
 
     <td><?= htmlspecialchars($e['kullanici']) ?></td>
@@ -288,12 +325,12 @@ usort($ekstre, function ($a, $b) {
     tarihleri arasında:
     <br>
     <b>Toplam Satış:</b> 
-    <?= number_format($toplam_satis, 2, ',', '.') ?> ₺
+    <?= format_currency_lines((float)$toplam_satis, $rates) ?>
     <br>
     <b>Toplam Ödeme:</b> 
-    <?= number_format($toplam_odeme, 2, ',', '.') ?> ₺<br>
+    <?= format_currency_lines((float)$toplam_odeme, $rates) ?><br>
     <b>Dönem Borçu:</b> 
-    <?= number_format($toplam_satis - $toplam_odeme, 2, ',', '.') ?> ₺
+    <?= format_currency_lines((float)($toplam_satis - $toplam_odeme), $rates) ?>
 </div>
 
 

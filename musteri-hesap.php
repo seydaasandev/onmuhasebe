@@ -17,6 +17,41 @@ if (strtolower($role) === 'user') {
 if(!isset($_GET['id']) || !is_numeric($_GET['id'])) die("Geçersiz müşteri");
 $musteri_id = (int)$_GET['id'];
 
+function get_live_rates(PDO $db): array {
+    $rates = ['TRY' => 1.0, 'EUR' => 1.0, 'USD' => 1.0, 'GBP' => 1.0];
+    $q = $db->query("SELECT para_birimi, kur FROM doviz_kurlari WHERE para_birimi IN ('TRY','EUR','USD','GBP')");
+    foreach ($q as $r) {
+        $pb = strtoupper((string)$r['para_birimi']);
+        $kur = (float)$r['kur'];
+        if ($kur > 0 && isset($rates[$pb])) {
+            $rates[$pb] = $kur;
+        }
+    }
+    $rates['TRY'] = 1.0;
+    return $rates;
+}
+
+function format_multi_currency_html(float $eur, array $rates, bool $withStrong = true): string {
+    $eur = (float)$eur;
+    $tl = $rates['EUR'] > 0 ? $eur * $rates['EUR'] : 0;
+    $usd = $rates['USD'] > 0 ? $tl / $rates['USD'] : 0;
+    $gbp = $rates['GBP'] > 0 ? $tl / $rates['GBP'] : 0;
+
+    $head = '€ ' . number_format($eur, 2, ',', '.');
+    if ($withStrong) {
+        $head = '<strong>' . $head . '</strong>';
+    }
+
+    return $head
+        . '<br><small style="font-size:11px;line-height:1.3;opacity:.9;">'
+        . '₺ ' . number_format($tl, 2, ',', '.') . ' | '
+        . '$ ' . number_format($usd, 2, ',', '.') . ' | '
+        . '£ ' . number_format($gbp, 2, ',', '.')
+        . '</small>';
+}
+
+$rates = get_live_rates($db);
+
 /* MÜŞTERİ BİLGİLERİ */
 $musteri = $db->prepare("
     SELECT 
@@ -205,7 +240,7 @@ $faturalar = $faturalar->fetchAll(PDO::FETCH_ASSOC);
                 <div class="col-lg-3 col-3">
                     <div class="p-2">
                         <h4 class="text-white mb-1">
-                            <?= number_format($toplam_odeme, 2, ',', '.') ?> ₺
+                            <?= format_multi_currency_html((float)$toplam_odeme, $rates, false) ?>
                         </h4>
                         <p class="fs-14 mb-0">Toplam Ödeme</p>
                     </div>
@@ -214,7 +249,7 @@ $faturalar = $faturalar->fetchAll(PDO::FETCH_ASSOC);
                 <div class="col-lg-3 col-3">
                     <div class="p-2">
                         <h4 class="text-white mb-1">
-                            <?= number_format($toplam_satis, 2, ',', '.') ?> ₺
+                            <?= format_multi_currency_html((float)$toplam_satis, $rates, false) ?>
                         </h4>
                         <p class="fs-14 mb-0">Toplam Satın Alma</p>
                     </div>
@@ -223,7 +258,7 @@ $faturalar = $faturalar->fetchAll(PDO::FETCH_ASSOC);
                 <div class="col-lg-3 col-3">
                     <div class="p-2">
                         <h4 class="text-white mb-1 <?= $kalan_borc > 0 ? 'text-danger' : 'text-success' ?>">
-                            <?= number_format($kalan_borc, 2, ',', '.') ?> ₺
+                            <?= format_multi_currency_html((float)$kalan_borc, $rates, false) ?>
                         </h4>
                         <p class="fs-14 mb-0">Kalan Borç</p>
                     </div>
@@ -231,7 +266,7 @@ $faturalar = $faturalar->fetchAll(PDO::FETCH_ASSOC);
                 <div class="col-lg-3 col-3">
                     <div class="p-2">
                         <h4 class="text-white mb-1 <?= $toplam_indirim > 0 ? 'text-danger' : 'text-success' ?>">
-                            <?= number_format($toplam_indirim, 2, ',', '.') ?> ₺
+                            <?= format_multi_currency_html((float)$toplam_indirim, $rates, false) ?>
                         </h4>
                         <p class="fs-14 mb-0">Toplam İndirim</p>
                     </div>
@@ -293,10 +328,10 @@ $faturalar = $faturalar->fetchAll(PDO::FETCH_ASSOC);
             <td><?= $s['tarih'] ?></td>
            <td><?= htmlspecialchars($s['urun_adi'] ?? '-') ?></td>
             <td><?= htmlspecialchars($s['adet'] ?? '-') ?></td>
-            <td><?= number_format($s['tutar'],2,',','.') ?> ₺</td>
-            <td><?= number_format($s['indirim_toplami'],2,',','.') ?> ₺</td>
-            <td><?= number_format($s['kdv_toplami'],2,',','.') ?> ₺</td>
-                        <td><?= number_format($s['genel_tutar'],2,',','.') ?> ₺</td>
+            <td><?= format_multi_currency_html((float)$s['tutar'], $rates) ?></td>
+            <td><?= format_multi_currency_html((float)$s['indirim_toplami'], $rates) ?></td>
+            <td><?= format_multi_currency_html((float)$s['kdv_toplami'], $rates) ?></td>
+                        <td><?= format_multi_currency_html((float)$s['genel_tutar'], $rates) ?></td>
             <td>
                 <?= $s['fatura_durum'] == 1
                     ? '<span class="badge bg-secondary">Kapalı</span>'
@@ -340,7 +375,7 @@ $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function () {
         <tr>
             <td><?= $o['tarih'] ?></td>
             <td><?= htmlspecialchars($o['makbuz_no'] ?? '-') ?></td>
-            <td><?= number_format($o['tutar'],2,',','.') ?> ₺</td>
+            <td><?= format_multi_currency_html((float)$o['tutar'], $rates) ?></td>
             <td><?= htmlspecialchars($o['fatura_no'] ?? '-') ?></td>
         </tr>
     <?php endforeach; ?>
@@ -378,7 +413,7 @@ $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function () {
     <td><?= $f['tarih'] ?></td>
     <td><?= htmlspecialchars($f['fatura_no'] ?? '-') ?></td>
     <td><?= htmlspecialchars($f['islem_no'] ?? '-') ?></td>
-    <td><?= number_format($f['fatura_tutari'],2,',','.') ?> ₺</td>
+    <td><?= format_multi_currency_html((float)$f['fatura_tutari'], $rates) ?></td>
     <td>
         <?= (int)$f['fatura_durum'] === 1
             ? '<span class="badge bg-secondary">Kapalı</span>'

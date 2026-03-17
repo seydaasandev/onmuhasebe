@@ -236,7 +236,7 @@ $(document).ready(function () {
   ========================== */
  function sepetiGuncelle() {
 
-  const s = '€';
+  const s = '₺';
 
   const liste = $('#sepet_listesi').empty();
 

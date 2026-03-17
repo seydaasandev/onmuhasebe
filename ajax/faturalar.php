@@ -4,6 +4,34 @@ error_reporting(E_ALL);
 require "../config.php";
 header('Content-Type: application/json; charset=utf-8');
 
+function get_live_rates(PDO $db): array {
+    $rates = ['TRY' => 1.0, 'EUR' => 1.0, 'USD' => 1.0, 'GBP' => 1.0];
+    $q = $db->query("SELECT para_birimi, kur FROM doviz_kurlari WHERE para_birimi IN ('TRY','EUR','USD','GBP')");
+    foreach ($q as $r) {
+        $pb = strtoupper((string)$r['para_birimi']);
+        $kur = (float)$r['kur'];
+        if ($kur > 0 && isset($rates[$pb])) {
+            $rates[$pb] = $kur;
+        }
+    }
+    $rates['TRY'] = 1.0;
+    return $rates;
+}
+
+function format_multi_currency_cell(float $eur, array $rates): string {
+    $eur = (float)$eur;
+    $tl = $rates['EUR'] > 0 ? $eur * $rates['EUR'] : 0;
+    $usd = $rates['USD'] > 0 ? $tl / $rates['USD'] : 0;
+    $gbp = $rates['GBP'] > 0 ? $tl / $rates['GBP'] : 0;
+
+    return '<div><strong>€ ' . number_format($eur, 2, ',', '.') . '</strong></div>'
+        . '<div class="text-muted" style="font-size:11px;line-height:1.3;">'
+        . '₺ ' . number_format($tl, 2, ',', '.') . ' | '
+        . '$ ' . number_format($usd, 2, ',', '.') . ' | '
+        . '£ ' . number_format($gbp, 2, ',', '.')
+        . '</div>';
+}
+
 /* =====================================================
    REQUEST
 ===================================================== */
@@ -38,7 +66,9 @@ $orderColumn   = $columns[$orderColIndex] ?? 'o.id';
 /* =====================================================
    CACHE
 ===================================================== */
+$cacheVersion = 'faturalar_multi_view_eur_v2';
 $cacheKey = md5(json_encode([
+    $cacheVersion,
     $search, $startDate, $endDate, $start, $length,
     $orderColumn, $orderDir
 ]));
@@ -142,6 +172,7 @@ $stmt->bindValue(':length', $length, PDO::PARAM_INT);
 $stmt->execute();
 
 $data = [];
+$rates = get_live_rates($db);
 
 while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
 
@@ -179,9 +210,9 @@ while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
     $data[] = [
         $r['id'],
         $r['musteri_adi'],
-        number_format($r['fatura_tutari'], 2, ',', '.') . ' ₺',
+        format_multi_currency_cell((float)$r['fatura_tutari'], $rates),
         $r['fatura_no'],
-        number_format($r['indirim_toplami'], 2, ',', '.') . ' ₺',
+        format_multi_currency_cell((float)$r['indirim_toplami'], $rates),
         $r['namesurname'],
         date('d.m.Y H:i', strtotime($r['tarih'])),
         $actions
