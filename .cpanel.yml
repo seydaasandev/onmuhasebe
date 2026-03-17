@@ -1,0 +1,13 @@
+---
+deployment:
+  targets:
+    production:
+      type: web
+      default: true
+      domain: nextario.com
+      path: /public_html/eski
+      exclude_paths:
+        - .git
+        - .gitignore
+        - README.md
+        - node_modules
