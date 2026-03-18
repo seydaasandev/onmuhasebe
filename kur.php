@@ -41,6 +41,7 @@ foreach ($varsayilanlar as $pb => $v) {
 }
 
 $sirali = ['TRY', 'EUR', 'USD', 'GBP'];
+$cronCommand = '*/30 * * * * /usr/bin/php ' . __DIR__ . '/cron_kur_guncelle.php';
 
 ?>
 
@@ -138,6 +139,11 @@ $sirali = ['TRY', 'EUR', 'USD', 'GBP'];
                                             </button>
                                         </form>
                                         <small class="text-muted align-self-center">Kaynak: https://online.sundoviz.com/services/api.php</small>
+                                    </div>
+
+                                    <div class="alert alert-info" role="alert">
+                                        Otomatik zamanlama icin Linux cron kullanin:<br>
+                                        <code><?= htmlspecialchars($cronCommand) ?></code>
                                     </div>
 
                                     <form action="islem.php?islem=kur_guncelle" method="POST">

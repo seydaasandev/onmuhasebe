@@ -2,6 +2,7 @@
 session_start();
 require "config.php";
 require "log_helpers.php";
+require "kur_helpers.php";
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
@@ -2272,97 +2273,9 @@ if ($_GET['islem'] == 'kur_guncelle') {
 ================================ */
 if ($_GET['islem'] == 'kur_oto_cek') {
 
-    $url = 'https://online.sundoviz.com/services/api.php';
-    $json = '';
-
-    if (function_exists('curl_init')) {
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-        $json = (string)curl_exec($ch);
-        curl_close($ch);
-    }
-
-    if ($json === '' && ini_get('allow_url_fopen')) {
-        $json = (string)@file_get_contents($url);
-    }
-
-    $liste = json_decode($json, true);
-    if (!is_array($liste)) {
-        $_SESSION['mesaj'] = 'hata';
-        header("Location: kur.php");
-        exit;
-    }
-
-    $hedef = ['EUR', 'USD', 'GBP'];
-    $bulunan = [];
-    foreach ($liste as $satir) {
-        $pb = strtoupper(trim((string)($satir['dovizcins'] ?? '')));
-        if (!in_array($pb, $hedef, true)) {
-            continue;
-        }
-        $alis = (float)($satir['alisKur'] ?? 0);
-        $satis = (float)($satir['satisKur'] ?? 0);
-        $degisim = !empty($satir['sonDegisiklik']) ? date('Y-m-d H:i:s', strtotime($satir['sonDegisiklik'])) : date('Y-m-d H:i:s');
-
-        if ($alis > 0 && $satis > 0) {
-            $bulunan[$pb] = [
-                'alis' => $alis,
-                'satis' => $satis,
-                'kur' => $satis,
-                'son' => $degisim,
-            ];
-        }
-    }
-
-    if (empty($bulunan)) {
-        $_SESSION['mesaj'] = 'hata';
-        header("Location: kur.php");
-        exit;
-    }
-
-    try {
-        $db->beginTransaction();
-
-        $upsert = $db->prepare(" 
-            INSERT INTO doviz_kurlari (para_birimi, alis_kur, satis_kur, kur, kaynak, son_guncelleme)
-            VALUES (?, ?, ?, ?, 'sundoviz', ?)
-            ON DUPLICATE KEY UPDATE
-                alis_kur = VALUES(alis_kur),
-                satis_kur = VALUES(satis_kur),
-                kur = VALUES(kur),
-                kaynak = 'sundoviz',
-                son_guncelleme = VALUES(son_guncelleme)
-        ");
-
-        // TRY sabit
-        $upsert->execute(['TRY', 1, 1, 1, date('Y-m-d H:i:s')]);
-
-        foreach ($bulunan as $pb => $v) {
-            $upsert->execute([$pb, $v['alis'], $v['satis'], $v['kur'], $v['son']]);
-        }
-
-        // Eski kur tablosu: EUR
-        if (!empty($bulunan['EUR']['kur'])) {
-            $eur = (float)$bulunan['EUR']['kur'];
-            $id = $db->query("SELECT id FROM kur LIMIT 1")->fetchColumn();
-            if ($id) {
-                $db->prepare("UPDATE kur SET kur=? WHERE id=?")->execute([$eur, $id]);
-            } else {
-                $db->prepare("INSERT INTO kur (kur) VALUES (?)")->execute([$eur]);
-            }
-        }
-
-        $db->commit();
-        $_SESSION['mesaj'] = 'oto_ok';
-    } catch (Exception $e) {
-        if ($db->inTransaction()) {
-            $db->rollBack();
-        }
-        $_SESSION['mesaj'] = 'hata';
-    }
+    $sonuc = kur_otomatik_guncelle($db);
+    $_SESSION['mesaj'] = !empty($sonuc['ok']) ? 'oto_ok' : 'hata';
+    $_SESSION['mesaj_detay'] = (string)($sonuc['message'] ?? '');
 
     header("Location: kur.php");
     exit;
