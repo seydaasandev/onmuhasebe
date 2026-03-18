@@ -808,11 +808,30 @@ if (isset($_GET['islem']) && $_GET['islem'] == "musteri_sil") {
 if (isset($_GET['islem']) && $_GET['islem'] == "odeme_ekle") {
 
     $musteri_id   = (int)($_POST['musteri_id'] ?? 0);
-    $tutar        = (float)($_POST['tutar'] ?? 0);
+    $paraBirimi   = strtoupper(trim((string)($_POST['odeme_para_birimi'] ?? 'EUR')));
+    $girilenTutar = (float)($_POST['odeme_tutar_orijinal'] ?? 0);
     $makbuz_no    = $_POST['makbuz_no'] ?? '';
     $aciklama     = $_POST['aciklama'] ?? '';
-  
     $odemeyi_alan = (int)($_POST['odemeyi_alan'] ?? 0);
+
+    $gecerliParaBirimleri = ['EUR', 'USD', 'GBP', 'TRY'];
+    if (!in_array($paraBirimi, $gecerliParaBirimleri, true)) {
+        $paraBirimi = 'EUR';
+    }
+
+    $rates = get_rates_map($db);
+    $eurRate = (float)($rates['EUR'] ?? 0);
+    $tutar = 0.0;
+
+    if ($girilenTutar > 0) {
+        if ($paraBirimi === 'EUR') {
+            $tutar = $girilenTutar;
+        } elseif ($paraBirimi === 'TRY' && $eurRate > 0) {
+            $tutar = $girilenTutar / $eurRate;
+        } elseif ($eurRate > 0 && !empty($rates[$paraBirimi])) {
+            $tutar = ($girilenTutar * (float)$rates[$paraBirimi]) / $eurRate;
+        }
+    }
 
     /* ZORUNLU ALAN KONTROLÜ */
     if ($musteri_id == 0 || $tutar <= 0 || $odemeyi_alan == 0) {
@@ -848,12 +867,15 @@ if (isset($_GET['islem']) && $_GET['islem'] == "odeme_ekle") {
             $odemeId,
             log_format_pairs([
                 'Musteri' => $musteriAdi,
-                'Tutar' => $tutar,
+                'Girilen Tutar' => round($girilenTutar, 2) . ' ' . $paraBirimi,
+                'EUR Tutar' => round($tutar, 2),
                 'Makbuz' => $makbuz_no,
             ]),
             [
                 'musteri_id' => $musteri_id,
                 'musteri_adi' => $musteriAdi,
+                'girilen_tutar' => $girilenTutar,
+                'girilen_para_birimi' => $paraBirimi,
                 'tutar' => $tutar,
                 'makbuz_no' => $makbuz_no,
                 'aciklama' => $aciklama,
@@ -936,12 +958,32 @@ if (isset($_GET['islem']) && $_GET['islem'] == "odeme_sil") {
 ========================================= */
 if (isset($_GET['islem']) && $_GET['islem'] == "odeme_duzenle") {
 
-    $id           = $_POST['id'];
-    $musteri_id   = $_POST['musteri_id'];
-    $tutar        = $_POST['tutar'];
-    $makbuz_no    = $_POST['makbuz_no'];
-    $aciklama     = $_POST['aciklama'];
-    $odemeyi_alan = $_POST['odemeyi_alan'];
+    $id           = (int)($_POST['id'] ?? 0);
+    $musteri_id   = (int)($_POST['musteri_id'] ?? 0);
+    $paraBirimi   = strtoupper(trim((string)($_POST['odeme_para_birimi'] ?? 'EUR')));
+    $girilenTutar = (float)($_POST['odeme_tutar_orijinal'] ?? 0);
+    $makbuz_no    = $_POST['makbuz_no'] ?? '';
+    $aciklama     = $_POST['aciklama'] ?? '';
+    $odemeyi_alan = (int)($_POST['odemeyi_alan'] ?? 0);
+
+    $gecerliParaBirimleri = ['EUR', 'USD', 'GBP', 'TRY'];
+    if (!in_array($paraBirimi, $gecerliParaBirimleri, true)) {
+        $paraBirimi = 'EUR';
+    }
+
+    $rates = get_rates_map($db);
+    $eurRate = (float)($rates['EUR'] ?? 0);
+    $tutar = 0.0;
+
+    if ($girilenTutar > 0) {
+        if ($paraBirimi === 'EUR') {
+            $tutar = $girilenTutar;
+        } elseif ($paraBirimi === 'TRY' && $eurRate > 0) {
+            $tutar = $girilenTutar / $eurRate;
+        } elseif ($eurRate > 0 && !empty($rates[$paraBirimi])) {
+            $tutar = ($girilenTutar * (float)$rates[$paraBirimi]) / $eurRate;
+        }
+    }
 
     // ZORUNLU ALAN KONTROLÜ
     if ($musteri_id == "" || $tutar <= 0 || $odemeyi_alan == "") {
@@ -984,13 +1026,16 @@ if (isset($_GET['islem']) && $_GET['islem'] == "odeme_duzenle") {
             (int)$id,
             log_format_pairs([
                 'Musteri' => $musteriAdi,
-                'Tutar' => $tutar,
+                'Girilen Tutar' => round($girilenTutar, 2) . ' ' . $paraBirimi,
+                'EUR Tutar' => round($tutar, 2),
                 'Makbuz' => $makbuz_no,
             ]),
             [
                 'once' => $eskiOdeme,
                 'sonra' => [
                     'musteri_id' => $musteri_id,
+                    'girilen_tutar' => $girilenTutar,
+                    'girilen_para_birimi' => $paraBirimi,
                     'tutar' => $tutar,
                     'makbuz_no' => $makbuz_no,
                     'aciklama' => $aciklama,

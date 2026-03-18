@@ -54,6 +54,15 @@ $users = $db->query("
     WHERE durum = 0
     ORDER BY username ASC
 ")->fetchAll(PDO::FETCH_ASSOC);
+$kurRows = $db->query("SELECT para_birimi, kur FROM doviz_kurlari WHERE para_birimi IN ('TRY','EUR','USD','GBP')")->fetchAll(PDO::FETCH_ASSOC);
+$rates = ['TRY' => 1.0, 'EUR' => 1.0, 'USD' => 1.0, 'GBP' => 1.0];
+foreach ($kurRows as $row) {
+    $pb = strtoupper((string)$row['para_birimi']);
+    $kur = (float)$row['kur'];
+    if ($kur > 0 && isset($rates[$pb])) {
+        $rates[$pb] = $kur;
+    }
+}
 ?>
 
 
@@ -162,13 +171,39 @@ $users = $db->query("
         </div>
     </div>
 
-    <!-- TUTAR -->
-    <div class="col-6">
+    <div class="col-md-4">
         <div class="mb-3">
-            <label class="form-label">Tutar (EUR)</label>
-            <input type="number" step="0.01" name="tutar"
+            <label class="form-label">Odeme Para Birimi</label>
+            <select name="odeme_para_birimi" id="odeme_para_birimi" class="form-select" required>
+                <option value="EUR" selected>EUR</option>
+                <option value="USD">USD</option>
+                <option value="GBP">GBP</option>
+                <option value="TRY">TL</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="mb-3">
+            <label class="form-label">Girilen Odeme Tutari</label>
+            <input type="number" step="0.01" min="0" name="odeme_tutar_orijinal" id="odeme_tutar_orijinal"
                    class="form-control"
-                   value="<?= $odeme['tutar'] ?>" required>
+                   value="<?= htmlspecialchars(number_format((float)$odeme['tutar'], 2, '.', '')) ?>" required>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="mb-3">
+            <label class="form-label">Sisteme Kaydedilecek Tutar (EUR)</label>
+            <input type="number" step="0.01" min="0" name="tutar" id="tutar_eur"
+                   class="form-control"
+                   value="<?= htmlspecialchars(number_format((float)$odeme['tutar'], 2, '.', '')) ?>" required readonly>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="mb-1 small text-muted">
+            Mevcut odeme kaydi EUR olarak tutuluyor. Farkli bir para birimi secerseniz sistem tutari anlik olarak EUR karsiligina cevirir ve kaydi EUR olarak gunceller.
         </div>
     </div>
 
@@ -288,6 +323,62 @@ Swal.fire({
 });
 </script>
 <?php unset($_SESSION['mesaj']); endif; ?>
+<script>
+const odemeRates = <?= json_encode($rates, JSON_UNESCAPED_UNICODE) ?>;
+
+function convertPaymentToEur(amount, currency, rates) {
+    const numericAmount = Number(amount) || 0;
+    if (numericAmount <= 0) {
+        return 0;
+    }
+
+    const eurRate = Number(rates.EUR || 0);
+    if (currency === 'EUR') {
+        return numericAmount;
+    }
+
+    if (eurRate <= 0) {
+        return 0;
+    }
+
+    if (currency === 'TRY') {
+        return numericAmount / eurRate;
+    }
+
+    const selectedRate = Number(rates[currency] || 0);
+    if (selectedRate <= 0) {
+        return 0;
+    }
+
+    const tlAmount = numericAmount * selectedRate;
+    return tlAmount / eurRate;
+}
+
+function refreshEurPaymentValue() {
+    const currency = document.getElementById('odeme_para_birimi');
+    const originalAmount = document.getElementById('odeme_tutar_orijinal');
+    const eurAmount = document.getElementById('tutar_eur');
+    if (!currency || !originalAmount || !eurAmount) {
+        return;
+    }
+
+    const eurValue = convertPaymentToEur(originalAmount.value, currency.value, odemeRates);
+    eurAmount.value = eurValue > 0 ? eurValue.toFixed(2) : '';
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const currency = document.getElementById('odeme_para_birimi');
+    const originalAmount = document.getElementById('odeme_tutar_orijinal');
+
+    if (currency) {
+        currency.addEventListener('change', refreshEurPaymentValue);
+    }
+    if (originalAmount) {
+        originalAmount.addEventListener('input', refreshEurPaymentValue);
+    }
+    refreshEurPaymentValue();
+});
+</script>
 <script src="assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src="assets/libs/simplebar/simplebar.min.js"></script>
     <script src="assets/libs/node-waves/waves.min.js"></script>

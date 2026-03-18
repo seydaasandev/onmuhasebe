@@ -1,12 +1,8 @@
 <?php
-session_start();
 require "config.php";
 require "auth.php";
 
-if (!isset($_SESSION['user_id']) || empty($_SESSION['user_id'])) {
-    header("Location: index.php"); 
-    exit;
-}
+
 $user_id = $_SESSION['user_id'];
 
 // Kullanıcı rolünü çek
@@ -22,6 +18,15 @@ if (strtolower($role) === 'user') {
 $users = $db->query("SELECT id, username, namesurname FROM users WHERE durum = 0 ORDER BY username ASC")->fetchAll(PDO::FETCH_ASSOC);
 $musteriler = $db->query("SELECT id, musteri_adi FROM musteriler ORDER BY id ASC")->fetchAll(PDO::FETCH_ASSOC);
 $urunler = $db->query("SELECT id, urun_adi FROM urunler ORDER BY id ASC")->fetchAll(PDO::FETCH_ASSOC);
+$kurRows = $db->query("SELECT para_birimi, kur FROM doviz_kurlari WHERE para_birimi IN ('TRY','EUR','USD','GBP')")->fetchAll(PDO::FETCH_ASSOC);
+$rates = ['TRY' => 1.0, 'EUR' => 1.0, 'USD' => 1.0, 'GBP' => 1.0];
+foreach ($kurRows as $row) {
+    $pb = strtoupper((string)$row['para_birimi']);
+    $kur = (float)$row['kur'];
+    if ($kur > 0 && isset($rates[$pb])) {
+        $rates[$pb] = $kur;
+    }
+}
 ?>
 
 
@@ -115,10 +120,27 @@ $urunler = $db->query("SELECT id, urun_adi FROM urunler ORDER BY id ASC")->fetch
         </select>
     </div>
 
-    <!-- TUTAR -->
-    <div class="mb-3">
-        <label class="form-label">Tutar (EUR)</label>
-        <input type="number" step="0.01" name="tutar" class="form-control" required>
+    <div class="row g-3">
+        <div class="col-md-4">
+            <label class="form-label">Odeme Para Birimi</label>
+            <select name="odeme_para_birimi" id="odeme_para_birimi" class="form-select" required>
+                <option value="EUR">EUR</option>
+                <option value="USD">USD</option>
+                <option value="GBP">GBP</option>
+                <option value="TRY">TL</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Girilen Odeme Tutari</label>
+            <input type="number" step="0.01" min="0" name="odeme_tutar_orijinal" id="odeme_tutar_orijinal" class="form-control" required>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Sisteme Kaydedilecek Tutar (EUR)</label>
+            <input type="number" step="0.01" min="0" name="tutar" id="tutar_eur" class="form-control" required readonly>
+        </div>
+    </div>
+    <div class="mt-2 mb-3 small text-muted">
+        Musteri odemeyi TL, USD, GBP veya EUR olarak yapabilir. Sistem kayit oncesi tutari guncel doviz kuruna gore EUR olarak hesaplar.
     </div>
 
     <!-- MAKBUZ NO -->
@@ -237,6 +259,62 @@ Swal.fire({
 
 <?php unset($_SESSION['mesaj']); endif; ?>
 <script src="assets/js/pages/select2.init.js"></script>
+<script>
+const odemeRates = <?= json_encode($rates, JSON_UNESCAPED_UNICODE) ?>;
+
+function convertPaymentToEur(amount, currency, rates) {
+    const numericAmount = Number(amount) || 0;
+    if (numericAmount <= 0) {
+        return 0;
+    }
+
+    const eurRate = Number(rates.EUR || 0);
+    if (currency === 'EUR') {
+        return numericAmount;
+    }
+
+    if (eurRate <= 0) {
+        return 0;
+    }
+
+    if (currency === 'TRY') {
+        return numericAmount / eurRate;
+    }
+
+    const selectedRate = Number(rates[currency] || 0);
+    if (selectedRate <= 0) {
+        return 0;
+    }
+
+    const tlAmount = numericAmount * selectedRate;
+    return tlAmount / eurRate;
+}
+
+function refreshEurPaymentValue() {
+    const currency = document.getElementById('odeme_para_birimi');
+    const originalAmount = document.getElementById('odeme_tutar_orijinal');
+    const eurAmount = document.getElementById('tutar_eur');
+    if (!currency || !originalAmount || !eurAmount) {
+        return;
+    }
+
+    const eurValue = convertPaymentToEur(originalAmount.value, currency.value, odemeRates);
+    eurAmount.value = eurValue > 0 ? eurValue.toFixed(2) : '';
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const currency = document.getElementById('odeme_para_birimi');
+    const originalAmount = document.getElementById('odeme_tutar_orijinal');
+
+    if (currency) {
+        currency.addEventListener('change', refreshEurPaymentValue);
+    }
+    if (originalAmount) {
+        originalAmount.addEventListener('input', refreshEurPaymentValue);
+    }
+    refreshEurPaymentValue();
+});
+</script>
 
     <script src="assets/libs/bootstrap/js/bootstrap.bundle.min.js"></script>
     <script src="assets/libs/simplebar/simplebar.min.js"></script>
