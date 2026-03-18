@@ -220,6 +220,11 @@
                                 <i class="ri-database-2-line"></i> <span data-key="t-widgets">Veritabanı Yedekle</span>
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link menu-link" href="islem-loglari.php">
+                                <i class="ri-file-list-3-line"></i> <span data-key="t-widgets">İşlem Logları</span>
+                            </a>
+                        </li>
                          </ul>
                 </div>
                 <!-- Sidebar -->

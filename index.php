@@ -1,6 +1,7 @@
 <?php
 session_start();
 require "config.php";
+require "log_helpers.php";
 
 $alert = ""; // SweetAlert mesajı için değişken
 $redirect = "panel.php"; // varsayılan yönlendirme
@@ -32,6 +33,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
             $_SESSION['username'] = $user['namesurname'];
+
+            log_islem(
+                $db,
+                'oturum',
+                'giris',
+                (int)$user['id'],
+                log_format_pairs([
+                    'Kullanici' => $user['namesurname'] ?: $user['username'],
+                    'Username' => $user['username'],
+                ]),
+                [
+                    'user_id' => (int)$user['id'],
+                    'username' => $user['username'],
+                    'namesurname' => $user['namesurname'],
+                    'redirect' => $redirect,
+                ]
+            );
 
             // Remember me seçiliyse cookie oluştur
           if (!empty($_POST['remember'])) {

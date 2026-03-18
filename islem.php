@@ -1,12 +1,15 @@
 <?php
 session_start();
 require "config.php";
+require "log_helpers.php";
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 if (!isset($_SESSION['user_id'])) {
     die('Yetkisiz erişim');
 }
+
+ensure_islem_loglari_table($db);
 
 function urun_resmi_yukle($inputName, $mevcutResim = '')
 {
@@ -118,6 +121,10 @@ if (isset($_GET['islem']) && $_GET['islem'] == "urun_sil") {
 
     $id = intval($_GET['id']);
 
+    $urunStmt = $db->prepare("SELECT urun_adi, stok, barkod FROM urunler WHERE id = ? AND durum = 0 LIMIT 1");
+    $urunStmt->execute([$id]);
+    $urun = $urunStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
     $guncelle = $db->prepare("
         UPDATE urunler 
         SET durum = 1 
@@ -125,7 +132,23 @@ if (isset($_GET['islem']) && $_GET['islem'] == "urun_sil") {
     ");
         $sonuc = $guncelle->execute([$id]);
 
-        $_SESSION['mesaj'] = $sonuc ? "sil_ok" : "sil_no";
+        if ($sonuc && $guncelle->rowCount() > 0) {
+            log_islem(
+                $db,
+                'urun',
+                'sil',
+                $id,
+                log_format_pairs([
+                    'Urun' => $urun['urun_adi'] ?? null,
+                    'Stok' => $urun['stok'] ?? null,
+                    'Barkod' => $urun['barkod'] ?? null,
+                ]),
+                $urun
+            );
+            $_SESSION['mesaj'] = "sil_ok";
+        } else {
+            $_SESSION['mesaj'] = "sil_no";
+        }
 
         // Cache temizle
         $cacheDir = __DIR__ . '/ajax/cacheurunler/';
@@ -151,7 +174,7 @@ if (isset($_GET['islem']) && $_GET['islem'] == "urun_duzenle") {
         exit;
     }
 
-    $urunSorgu = $db->prepare("SELECT resim FROM urunler WHERE id = ?");
+    $urunSorgu = $db->prepare("SELECT urun_adi, stok, barkod, satis_fiyat, satis_euro, resim FROM urunler WHERE id = ?");
     $urunSorgu->execute([$id]);
     $mevcutUrun = $urunSorgu->fetch(PDO::FETCH_ASSOC);
     if (!$mevcutUrun) {
@@ -253,6 +276,34 @@ if (isset($_GET['islem']) && $_GET['islem'] == "urun_duzenle") {
     ]);
 
     if ($update) {
+        log_islem(
+            $db,
+            'urun',
+            'duzenle',
+            $id,
+            log_format_pairs([
+                'Urun' => $urun_adi,
+                'Eski stok' => $mevcutUrun['stok'] ?? null,
+                'Yeni stok' => $stok,
+                'Barkod' => $barkod,
+            ]),
+            [
+                'once' => [
+                    'urun_adi' => $mevcutUrun['urun_adi'] ?? null,
+                    'stok' => $mevcutUrun['stok'] ?? null,
+                    'barkod' => $mevcutUrun['barkod'] ?? null,
+                    'satis_fiyat' => $mevcutUrun['satis_fiyat'] ?? null,
+                    'satis_euro' => $mevcutUrun['satis_euro'] ?? null,
+                ],
+                'sonra' => [
+                    'urun_adi' => $urun_adi,
+                    'stok' => $stok,
+                    'barkod' => $barkod,
+                    'satis_fiyat' => $satis_fiyat,
+                    'satis_euro' => $satis_euro,
+                ]
+            ]
+        );
         $_SESSION['mesaj'] = "duzenle_ok";
     } else {
         $_SESSION['mesaj'] = "duzenle_no";
@@ -361,6 +412,26 @@ if (isset($_GET['islem']) && $_GET['islem'] == "urun_ekle") {
     ]);
 
     if ($sonuc) {
+        $urunId = (int)$db->lastInsertId();
+        log_islem(
+            $db,
+            'urun',
+            'ekle',
+            $urunId,
+            log_format_pairs([
+                'Urun' => $urun_adi,
+                'Stok' => $stok,
+                'Barkod' => $barkod,
+                'Raf' => $raf_bolumu,
+            ]),
+            [
+                'urun_adi' => $urun_adi,
+                'stok' => $stok,
+                'barkod' => $barkod,
+                'satis_fiyat' => $satis_fiyat,
+                'satis_euro' => $satis_euro,
+            ]
+        );
         $_SESSION['mesaj'] = "ekle_ok";
         header("Location: urunler.php");
     } else {
@@ -527,6 +598,10 @@ if (isset($_GET['islem']) && $_GET['islem'] == "musteri_duzenle") {
     $sehir      = $_POST['sehir'];
    $sorumlu    = $_POST['sorumlu'] !== '' ? (int)$_POST['sorumlu'] : null;
 
+    $eskiMusteriStmt = $db->prepare("SELECT musteri_adi, yetkili, telefon, adres, sehir, sorumlu FROM musteriler WHERE id = ? LIMIT 1");
+    $eskiMusteriStmt->execute([$id]);
+    $eskiMusteri = $eskiMusteriStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
     $update = $db->prepare("
         UPDATE musteriler SET 
             musteri_adi=?,
@@ -548,7 +623,30 @@ if (isset($_GET['islem']) && $_GET['islem'] == "musteri_duzenle") {
         $id
     ]);
 
-  if ($update) {
+  if ($sonuc) {
+        log_islem(
+            $db,
+            'musteri',
+            'duzenle',
+            $id,
+            log_format_pairs([
+                'Musteri' => $musteri_adi,
+                'Yetkili' => $yetkili,
+                'Telefon' => $telefon,
+                'Sehir' => $sehir,
+            ]),
+            [
+                'once' => $eskiMusteri,
+                'sonra' => [
+                    'musteri_adi' => $musteri_adi,
+                    'yetkili' => $yetkili,
+                    'telefon' => $telefon,
+                    'adres' => $adres,
+                    'sehir' => $sehir,
+                    'sorumlu' => $sorumlu,
+                ]
+            ]
+        );
         $_SESSION['mesaj'] = "duzenle_ok";
     } else {
         $_SESSION['mesaj'] = "duzenle_no";
@@ -612,6 +710,27 @@ if (isset($_GET['islem']) && $_GET['islem'] === "musteri_ekle") {
     ]);
 
     if ($sonuc) {
+        $musteriId = (int)$db->lastInsertId();
+        log_islem(
+            $db,
+            'musteri',
+            'ekle',
+            $musteriId,
+            log_format_pairs([
+                'Musteri' => $musteri_adi,
+                'Yetkili' => $yetkili,
+                'Telefon' => $telefon,
+                'Sehir' => $sehir,
+            ]),
+            [
+                'musteri_adi' => $musteri_adi,
+                'yetkili' => $yetkili,
+                'telefon' => $telefon,
+                'adres' => $adres,
+                'sehir' => $sehir,
+                'sorumlu' => $sorumlu,
+            ]
+        );
         $_SESSION['mesaj'] = "ekle_ok";
 
         // Cache temizle
@@ -638,6 +757,10 @@ if (isset($_GET['islem']) && $_GET['islem'] == "musteri_sil") {
 
     $id = intval($_GET['id']);
 
+    $musteriStmt = $db->prepare("SELECT musteri_adi, yetkili, telefon, sehir FROM musteriler WHERE id = ? AND durum = 0 LIMIT 1");
+    $musteriStmt->execute([$id]);
+    $musteri = $musteriStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
     $guncelle = $db->prepare("
         UPDATE musteriler 
         SET durum = 1 
@@ -646,6 +769,19 @@ if (isset($_GET['islem']) && $_GET['islem'] == "musteri_sil") {
     $sonuc = $guncelle->execute([$id]);
 
     if ($sonuc && $guncelle->rowCount() > 0) {
+        log_islem(
+            $db,
+            'musteri',
+            'sil',
+            $id,
+            log_format_pairs([
+                'Musteri' => $musteri['musteri_adi'] ?? null,
+                'Yetkili' => $musteri['yetkili'] ?? null,
+                'Telefon' => $musteri['telefon'] ?? null,
+                'Sehir' => $musteri['sehir'] ?? null,
+            ]),
+            $musteri
+        );
         $_SESSION['mesaj'] = "sil_ok";
 
         // Cache temizle
@@ -699,6 +835,30 @@ if (isset($_GET['islem']) && $_GET['islem'] == "odeme_ekle") {
     ]);
 
     if ($sonuc) {
+        $musteriAdiStmt = $db->prepare("SELECT musteri_adi FROM musteriler WHERE id = ? LIMIT 1");
+        $musteriAdiStmt->execute([$musteri_id]);
+        $musteriAdi = (string)($musteriAdiStmt->fetchColumn() ?: '');
+
+        $odemeId = (int)$db->lastInsertId();
+        log_islem(
+            $db,
+            'odeme',
+            'ekle',
+            $odemeId,
+            log_format_pairs([
+                'Musteri' => $musteriAdi,
+                'Tutar' => $tutar,
+                'Makbuz' => $makbuz_no,
+            ]),
+            [
+                'musteri_id' => $musteri_id,
+                'musteri_adi' => $musteriAdi,
+                'tutar' => $tutar,
+                'makbuz_no' => $makbuz_no,
+                'aciklama' => $aciklama,
+                'odemeyi_alan' => $odemeyi_alan,
+            ]
+        );
         $_SESSION['mesaj'] = "ekle_ok";
 
         // Cache temizle
@@ -725,6 +885,10 @@ if (isset($_GET['islem']) && $_GET['islem'] == "odeme_sil") {
 
     $id = intval($_GET['id']);
 
+    $odemeStmt = $db->prepare("SELECT o.musteri_id, o.tutar, o.makbuz_no, o.aciklama, m.musteri_adi FROM odemeler o LEFT JOIN musteriler m ON m.id = o.musteri_id WHERE o.id = ? AND o.durum = 0 LIMIT 1");
+    $odemeStmt->execute([$id]);
+    $odeme = $odemeStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
     // SADECE AKTİF ÖDEMEYİ SİL
     $sil = $db->prepare("
         UPDATE odemeler 
@@ -735,6 +899,18 @@ if (isset($_GET['islem']) && $_GET['islem'] == "odeme_sil") {
     $sonuc = $sil->execute([$id]);
 
     if ($sonuc && $sil->rowCount() > 0) {
+        log_islem(
+            $db,
+            'odeme',
+            'sil',
+            $id,
+            log_format_pairs([
+                'Musteri' => $odeme['musteri_adi'] ?? null,
+                'Tutar' => $odeme['tutar'] ?? null,
+                'Makbuz' => $odeme['makbuz_no'] ?? null,
+            ]),
+            $odeme
+        );
         $_SESSION['mesaj'] = "sil_ok";
 
         // Cache temizle
@@ -773,6 +949,10 @@ if (isset($_GET['islem']) && $_GET['islem'] == "odeme_duzenle") {
         exit;
     }
 
+    $eskiOdemeStmt = $db->prepare("SELECT musteri_id, tutar, makbuz_no, aciklama, odemeyi_alan FROM odemeler WHERE id = ? LIMIT 1");
+    $eskiOdemeStmt->execute([$id]);
+    $eskiOdeme = $eskiOdemeStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
     $update = $db->prepare("
         UPDATE odemeler SET
             musteri_id = ?,
@@ -792,6 +972,31 @@ if (isset($_GET['islem']) && $_GET['islem'] == "odeme_duzenle") {
     ]);
 
     if ($update) {
+        $musteriAdiStmt = $db->prepare("SELECT musteri_adi FROM musteriler WHERE id = ? LIMIT 1");
+        $musteriAdiStmt->execute([$musteri_id]);
+        $musteriAdi = (string)($musteriAdiStmt->fetchColumn() ?: '');
+
+        log_islem(
+            $db,
+            'odeme',
+            'duzenle',
+            (int)$id,
+            log_format_pairs([
+                'Musteri' => $musteriAdi,
+                'Tutar' => $tutar,
+                'Makbuz' => $makbuz_no,
+            ]),
+            [
+                'once' => $eskiOdeme,
+                'sonra' => [
+                    'musteri_id' => $musteri_id,
+                    'tutar' => $tutar,
+                    'makbuz_no' => $makbuz_no,
+                    'aciklama' => $aciklama,
+                    'odemeyi_alan' => $odemeyi_alan,
+                ]
+            ]
+        );
         $_SESSION['mesaj'] = "duzenle_ok";
 
         // Cache temizle
@@ -921,6 +1126,34 @@ if (isset($_GET['islem']) && $_GET['islem'] === 'satis_ekle') {
 
         $db->commit();
 
+        $musteriAdiStmt = $db->prepare("SELECT musteri_adi FROM musteriler WHERE id = ? LIMIT 1");
+        $musteriAdiStmt->execute([$musteri_id]);
+        $musteriAdi = (string)($musteriAdiStmt->fetchColumn() ?: '');
+
+        log_islem(
+            $db,
+            'satis',
+            'ekle',
+            null,
+            log_format_pairs([
+                'Islem No' => $islem_no,
+                'Musteri' => $musteriAdi,
+                'Kalem' => count($sepet),
+                'Toplam' => round($net_fatura, 2),
+            ]),
+            [
+                'islem_no' => $islem_no,
+                'musteri_id' => $musteri_id,
+                'musteri_adi' => $musteriAdi,
+                'fatura_no' => $faturano,
+                'kalem_sayisi' => count($sepet),
+                'toplam_fatura' => $toplam_fatura,
+                'toplam_kdv' => $toplam_kdv,
+                'toplam_indirim' => $toplam_indirim,
+                'net_fatura' => $net_fatura,
+            ]
+        );
+
         $_SESSION['mesaj'] = 'satis_ok';
         header('Location: yeni-satis.php');
         exit;
@@ -950,9 +1183,12 @@ if (isset($_GET['islem']) && $_GET['islem'] === "satis_sil") {
 
         // 1️⃣ Silinecek satışın bilgilerini al
         $stmt = $db->prepare("
-            SELECT urun_id, adet, islem_no 
+            SELECT s.urun_id, s.adet, s.islem_no, s.musteri_id, s.tutar, u.urun_adi, m.musteri_adi
             FROM satislar 
-            WHERE id = ? AND durum = 0
+            s
+            LEFT JOIN urunler u ON u.id = s.urun_id
+            LEFT JOIN musteriler m ON m.id = s.musteri_id
+            WHERE s.id = ? AND s.durum = 0
         ");
         $stmt->execute([$satis_id]);
         $satis = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -984,6 +1220,21 @@ if (isset($_GET['islem']) && $_GET['islem'] === "satis_sil") {
         // Bu kısım basit için atlanabilir, karmaşık olduğu için
 
         $db->commit();
+
+        log_islem(
+            $db,
+            'satis',
+            'sil',
+            $satis_id,
+            log_format_pairs([
+                'Islem No' => $satis['islem_no'] ?? null,
+                'Musteri' => $satis['musteri_adi'] ?? null,
+                'Urun' => $satis['urun_adi'] ?? null,
+                'Adet' => $satis['adet'] ?? null,
+                'Tutar' => $satis['tutar'] ?? null,
+            ]),
+            $satis
+        );
 
         $_SESSION['mesaj'] = "sil_ok";
 
@@ -1113,6 +1364,31 @@ if (isset($_GET['islem']) && $_GET['islem'] === "satis_duzenle") {
         ]);
 
         $db->commit();
+
+        log_islem(
+            $db,
+            'satis',
+            'duzenle',
+            $id,
+            log_format_pairs([
+                'Satis ID' => $id,
+                'Musteri ID' => $musteri_id,
+                'Urun ID' => $urun_id,
+                'Adet' => $adet,
+            ]),
+            [
+                'once' => $eski,
+                'sonra' => [
+                    'musteri_id' => $musteri_id,
+                    'urun_id' => $urun_id,
+                    'adet' => $adet,
+                    'satisi_yapan_id' => $satisi_yapan,
+                    'tutar' => $tutar,
+                    'kdv_toplami' => $kdv_toplami,
+                    'genel_tutar' => $genel_tutar,
+                ]
+            ]
+        );
 
         $_SESSION['mesaj'] = "duzenle_ok";
 
@@ -1307,6 +1583,29 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && $_GET['islem'] === 'satis_guncelle'
         ")->execute([$adet, $urun_id]);
 
         $db->commit();
+
+        log_islem(
+            $db,
+            'satis',
+            'duzenle',
+            $satis_id,
+            log_format_pairs([
+                'Satis ID' => $satis_id,
+                'Urun ID' => $urun_id,
+                'Adet' => $adet,
+                'Tutar' => round($tutar, 2),
+            ]),
+            [
+                'once' => $eskiSatis,
+                'sonra' => [
+                    'urun_id' => $urun_id,
+                    'adet' => $adet,
+                    'indirim_toplami' => $indirim_toplam,
+                    'kdv_toplami' => $kdv_toplam,
+                    'tutar' => $tutar,
+                ]
+            ]
+        );
 
         $_SESSION['mesaj'] = 'satis_ok';
         header("Location:tum-satislar.php");
@@ -1589,6 +1888,36 @@ if (isset($_GET['islem']) && $_GET['islem'] === 'siparis_ekle') {
         ]);
 
         $db->commit();
+
+        $musteriAdiStmt = $db->prepare("SELECT musteri_adi FROM musteriler WHERE id = ? LIMIT 1");
+        $musteriAdiStmt->execute([$musteri_id]);
+        $musteriAdi = (string)($musteriAdiStmt->fetchColumn() ?: '');
+
+        log_islem(
+            $db,
+            'satis',
+            'ekle',
+            null,
+            log_format_pairs([
+                'Islem No' => $islem_no,
+                'Musteri' => $musteriAdi,
+                'Kalem' => count($sepet),
+                'Toplam' => round($net_fatura, 2),
+                'Tip' => 'Siparis',
+            ]),
+            [
+                'tip' => 'siparis',
+                'islem_no' => $islem_no,
+                'musteri_id' => $musteri_id,
+                'musteri_adi' => $musteriAdi,
+                'fatura_no' => $faturano,
+                'kalem_sayisi' => count($sepet),
+                'toplam_fatura' => $toplam_fatura,
+                'toplam_kdv' => $toplam_kdv,
+                'toplam_indirim' => $toplam_indirim,
+                'net_fatura' => $net_fatura,
+            ]
+        );
 
         $_SESSION['mesaj'] = 'siparis_ok';
         header('Location: yeni-siparis.php');
